@@ -1,7 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow,noarchive"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VoiceHarness · 接口地图</title><link rel="stylesheet" href="style.css"></head>
-<body>
+<head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow,noarchive"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VoiceHarness · 接口地图与方案模拟</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="workbench.css"></head>
+<body class="workbench">
+<div id="labBar"></div><dialog id="labDialog"></dialog>
 <header><div><span class="eyebrow">TEAM MAP · 无源码分享版</span><h1>VoiceHarness <span>接口地图</span></h1></div><div class="head-right"><span id="version"></span><button id="about">版本与证据</button><button id="unknown">未核实事项</button></div></header>
 <div class="toolbar"><label class="search">搜索模块 / 组件 / 接口<input id="search" placeholder="试试 retrieve、取消、MemorySession" autocomplete="off"></label><div class="tools"><button id="overview">全局总览</button><select id="focus" aria-label="模块聚焦"><option value="">选择模块聚焦…</option></select><button id="expandAll">展开全部</button><button id="collapseAll">折叠全部</button><button id="layout">自动布局</button><select id="export" aria-label="导出"><option value="">导出…</option><option value="svg">当前图 SVG</option><option value="png">当前图 PNG</option><option value="json">接口数据 JSON</option><option value="mermaid">当前图 Mermaid</option></select></div></div>
 <div class="workspace">
@@ -12,4 +13,4 @@
 <dialog id="sourceDialog"><div class="dialog-head"><div><strong id="sourceTitle"></strong><p id="sourceLocation"></p></div><button id="closeSource">关闭</button></div><div class="source-actions"><button id="copyPath">复制路径与行号</button><a id="githubLink" target="_blank" rel="noreferrer">GitHub 固定版本 ↗</a></div><pre id="sourceCode"></pre></dialog>
 <div id="toast" role="status"></div>
 <script src="data/graph-data.js"></script><script src="app.js"></script>
-</body></html>
+<script>window.MAP_PUBLIC=true;</script><script src="workbench.js"></script></body></html>
