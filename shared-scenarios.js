@@ -9,7 +9,7 @@ function clean(d){
  const out={schema:1,baseCommit:d.baseCommit};
  for(const k of ['nodes','edges','removedNodes','removedEdges']){if(!Array.isArray(d[k])||d[k].length>2000)throw Error('方案格式无效或过大');out[k]=k.startsWith('removed')?d[k].map(id=>{if(typeof id!=='string'||!/^[\w.-]{1,120}$/.test(id))throw Error('删除项ID无效');return id;}):d[k].map(item=>{
  const keys=k==='nodes'?['id','kind','parent','module','label','summary','signature','input','output','errors']:['id','source','target','type','label'];const v={};for(const key of keys)if(Object.hasOwn(item,key)){if(typeof item[key]!=='string'||item[key].length>10000)throw Error('字段格式无效');v[key]=item[key];}if(!/^[\w.-]{1,120}$/.test(v.id))throw Error('ID无效');return v;});}
- if(JSON.stringify(out).length>40000)throw Error('共享方案超过40,000字符，请拆成几个小方案提交。');
+ if(new TextEncoder().encode(JSON.stringify(out)).length>40000)throw Error('共享方案超过40 KB，请拆成几个小方案提交。');
  return out;
 }
 function encode(d){return btoa(Array.from(new TextEncoder().encode(JSON.stringify(clean(d))),x=>String.fromCharCode(x)).join(''));}
