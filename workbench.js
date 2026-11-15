@@ -34,7 +34,7 @@ function scenario(d=draft){
 }
 function save(){scenario();localStorage.setItem(key,JSON.stringify(draft));}
 function message(s){$('labMessage').textContent=s;}
-function bar(){ $('labBar').innerHTML=`<strong>${publicView?'接口地图 · 方案模拟':'本地试验台'}</strong><span id="labMode">${esc(baseLabel)}</span><button id="labDraft">模拟改图</button>${publicView?'':'<button id="labUpdate">源码更新</button><button id="labPublish">发布分享版</button>'}<button id="labBase">恢复基线</button><span id="labMessage"></span>`;}
+function bar(){ $('labBar').innerHTML=`<strong>${publicView?'接口地图 · 方案模拟':'本地试验台'}</strong><span id="labMode">${esc(baseLabel)}</span><button id="labDraft">模拟改图</button><button id="labShared">共享方案</button>${publicView?'':'<button id="labUpdate">源码更新</button><button id="labPublish">发布分享版</button>'}<button id="labBase">恢复基线</button><span id="labMessage"></span>`;}
 function preview(g,label){map.replaceGraph(g);$('labMode').textContent=label;$('labDialog').close();}
 function showDraft(){mode='draft';preview(scenario(),'模拟草稿 · 不改主代码');}
 function options(list,value=''){return list.map(n=>`<option value="${esc(n.id)}" ${value===n.id?'selected':''}>${esc(n.label||n.id)} · ${esc(n.id)}</option>`).join('');}
@@ -42,7 +42,7 @@ function dialog(title,html){$('labDialog').innerHTML=`<div class="lab-heading"><
 function download(data,name){const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function mutate(fn){const old=structuredClone(draft);try{fn();save();showDraft();message('草稿已保存在此浏览器；业务代码和当前发布数据未变。');}catch(e){draft=old;message(e.message);alert(e.message);}}
 function editor(){
- const g=scenario();dialog('模拟添加与调整',`<p>先在图里试方案。新增、修改的节点及其连线标为 Proposed；含义是拟议关系，不会变成源码事实。</p><div class="lab-row"><button id="draftExample">添加摘要接入示例</button><button id="draftPreview">预览草稿</button><button id="draftExport">导出草稿</button><label class="lab-import">导入草稿<input id="draftImport" type="file" accept=".json"></label></div><p class="hint">${publicView?'草稿只保存在你自己的浏览器，其他人不会自动看到；可导出草稿进行交流。':'草稿只含修改项，不附业务源码；图上“完整数据 JSON”仍是本地研究资料，不可直接公开。'}</p>
+ const g=scenario();dialog('模拟添加与调整',`<p>先在图里试方案。新增、修改的节点及其连线标为 Proposed；含义是拟议关系，不会变成源码事实。</p><div class="lab-row"><button id="draftExample">添加摘要接入示例</button><button id="draftPreview">预览草稿</button><button id="draftExport">导出草稿</button><button id="draftSubmit">提交共享方案</button><label class="lab-import">导入草稿<input id="draftImport" type="file" accept=".json"></label></div><p class="hint">${publicView?'草稿先保存在你的浏览器。点“提交共享方案”并在 GitHub 确认后，其他人可在“共享方案”查看。':'草稿只含修改项，不附业务源码；图上“完整数据 JSON”仍是本地研究资料，不可直接公开。'}</p>
  <h3>节点</h3><label>选择已有节点编辑<select id="nodePick"><option value="">新增节点…</option>${options(g.nodes)}</select></label>
  <form id="nodeForm"><label>层级<select id="nodeKind"><option value="interface">接口</option><option value="component">组件</option><option value="module">模块</option></select></label><label>属于哪个模块 / 组件<select id="nodeParent"></select></label><label>名称<input id="nodeLabel" required maxlength="120" placeholder="例如 summarizeConversation"></label><label>一句话用途<textarea id="nodeSummary" maxlength="2000"></textarea></label><label>签名<input id="nodeSignature" placeholder="例如 summarize(input): Summary"></label><label>输入<input id="nodeInput"></label><label>输出<input id="nodeOutput"></label><label>错误与取消<input id="nodeErrors"></label><div class="lab-row"><button type="submit">保存节点并预览</button><button type="button" id="nodeDelete">模拟删除此节点</button></div></form>
  <h3>连线</h3><label>选择已有连线<select id="edgePick"><option value="">新增连线…</option>${options(g.edges.map(e=>({id:e.id,label:g.nodes.find(n=>n.id===e.source)?.label+' → '+g.nodes.find(n=>n.id===e.target)?.label+' · '+e.type})))}</select></label>
@@ -57,6 +57,7 @@ function editor(){
  $('edgeForm').onsubmit=e=>{e.preventDefault();mutate(()=>{const edge={id:editingEdge||id(),source:$('edgeSource').value,target:$('edgeTarget').value,type:$('edgeType').value,label:$('edgeLabel').value.trim()};if(!edge.label)throw Error('请输入连线说明');draft.edges=draft.edges.filter(x=>x.id!==edge.id);draft.edges.push(edge);});};
  $('edgeDelete').onclick=()=>{if(editingEdge)mutate(()=>{draft.removedEdges.push(editingEdge);draft.edges=draft.edges.filter(e=>e.id!==editingEdge);});};
  $('draftExample').onclick=()=>mutate(()=>{const component=id(),api=id();draft.nodes.push({id:component,kind:'component',module:'eff',parent:'eff',label:'拟议摘要服务',summary:'讨论用替换方案，尚未实现。'},{id:api,kind:'interface',module:'eff',parent:component,label:'summarizeDraft',signature:'summarizeDraft(input, signal): Summary',input:'待总结的对话与取消信号',output:'摘要文本与来源范围',summary:'先在图里讨论摘要交接，不执行摘要。',errors:'拟议：取消后不发布迟到结果；待团队确认。'});draft.edges.push({id:id(),source:'live.session',target:api,type:'Calls',label:'拟议：主流程调用摘要服务'});});
+ $('draftSubmit').onclick=()=>{$('labDialog').close();window.dispatchEvent(new Event('map-share-submit'));};
  $('draftPreview').onclick=showDraft;$('draftExport').onclick=()=>download(draft,'voiceharness-scenario.json');
  $('draftImport').onchange=async e=>{try{const f=e.target.files[0];if(!f)return;if(f.size>2000000)throw Error('草稿过大');const d=JSON.parse(await f.text());scenario(d);draft=d;save();showDraft();}catch(error){alert(error.message);}};
  $('draftReset').onclick=()=>{if(confirm('清空此浏览器的模拟草稿？已核验基线不受影响。')){draft=empty();save();mode='baseline';preview(base,baseLabel);}};
@@ -73,5 +74,9 @@ async function updates(){dialog('源码更新 · 本地专用',`<p>读取代码�
 bar();try{const saved=localStorage.getItem(key);if(saved){const d=JSON.parse(saved);scenario(d);draft=d;message('发现已保存草稿，点“模拟改图”继续。');}}catch{message('旧草稿未通过校验，未自动应用。');}
 $('labDraft').onclick=()=>{if(updatePending){message('更新尚未完成，请稍后再编辑。');return;}try{editor();}catch(e){alert(e.message);}};if(!publicView)$('labUpdate').onclick=()=>{if(updatePending){message('更新正在进行，请等待完成。');return;}updates();};$('labBase').onclick=()=>{mode='baseline';preview(base,baseLabel);message('已恢复；模拟草稿仍保存在本浏览器。');};
 if(!publicView)$('labPublish').onclick=()=>window.dispatchEvent(new Event('map-publish-open'));
-window.mapWorkbench={scenario,getDraft:()=>structuredClone(draft),getMode:()=>mode};
+$('labShared').onclick=()=>window.dispatchEvent(new Event('map-share-list'));
+window.mapWorkbench={scenario,getDraft:()=>structuredClone(draft),getMode:()=>mode,
+ previewShared(d,title){const g=scenario(d);g.meta.modeLabel='共享方案 · '+title+' · 尚未实现';mode='shared';preview(g,g.meta.modeLabel);$('proposed').checked=true;$('proposed').dispatchEvent(new Event('change'));const first=d.nodes.find(n=>n.kind==='interface')||d.nodes[0];if(first)map.select(first.id);else if(d.edges[0])map.select(d.edges[0].target);message('正在查看共享方案；你自己的模拟草稿未被覆盖。');},
+ adoptShared(d){scenario(d);const old=draft;try{draft=structuredClone(d);save();showDraft();message('已复制为本机草稿，继续修改后可提交为新的共享方案。');}catch(e){draft=old;throw e;}}
+};
 })();
