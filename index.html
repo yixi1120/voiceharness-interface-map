@@ -1,16 +1,131 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow,noarchive"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VoiceHarness · 接口地图与方案模拟</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="workbench.css"></head>
-<body class="workbench">
-<div id="labBar"></div><dialog id="labDialog"></dialog>
-<header><div><span class="eyebrow">TEAM MAP · 无源码分享版</span><h1>VoiceHarness <span>接口地图</span></h1></div><div class="head-right"><span id="version"></span><button id="about">版本与证据</button><button id="unknown">未核实事项</button></div></header>
-<div class="toolbar"><label class="search">搜索模块 / 组件 / 接口<input id="search" placeholder="试试 retrieve、取消、MemorySession" autocomplete="off"></label><div class="tools"><button id="overview">全局总览</button><select id="focus" aria-label="模块聚焦"><option value="">选择模块聚焦…</option></select><button id="expandAll">展开全部</button><button id="collapseAll">折叠全部</button><button id="layout">自动布局</button><select id="export" aria-label="导出"><option value="">导出…</option><option value="svg">当前图 SVG</option><option value="png">当前图 PNG</option><option value="json">接口数据 JSON</option><option value="mermaid">当前图 Mermaid</option></select></div></div>
-<div class="workspace">
-<aside class="navigator"><div class="side-title">模块与接口 <span id="nodeCount"></span></div><p class="hint">模块包含组件，组件定义接口。缩进表示归属，不表示调用。</p><div id="tree"></div></aside>
-<main id="graphPanel"><div id="tours" class="tours"></div><div class="filters"><div id="relations"></div><label><input type="checkbox" id="proposed"> 文档建议</label><label><input type="checkbox" id="allEdges"> 全部可见关系</label></div><div class="context"><div><strong id="viewTitle">全局总览</strong><span id="viewNote">点击模块展开；点击接口看直接上下游</span></div><div class="context-actions"><button id="clearSelection" hidden>清除选择</button><button id="fullscreen" aria-pressed="false" aria-controls="graphPanel" title="让关系图占满网页，按 Esc 退出">网页全屏 ⛶</button></div></div><div id="canvas" tabindex="0" aria-label="可拖动缩放的模块接口关系图"><svg id="graph" role="img" aria-label="VoiceHarness 模块与接口图"><defs id="defs"></defs><g id="viewport"><g id="backgrounds"></g><g id="edges"></g><g id="nodes"></g></g></svg><div class="zoom"><button id="zoomOut" aria-label="缩小">−</button><span id="zoomLabel">100%</span><button id="zoomIn" aria-label="放大">＋</button><button id="fit">适应画布</button></div><div id="empty" hidden>当前筛选没有可显示的关系，请调整筛选或返回总览。</div></div><footer><span id="stats"></span><span>拖动空白处平移 · 滚轮缩放 · 拖动节点调整位置 · 点击连线查看证据</span></footer></main>
-<aside id="detail" class="detail" aria-live="polite"></aside>
-</div>
-<dialog id="sourceDialog"><div class="dialog-head"><div><strong id="sourceTitle"></strong><p id="sourceLocation"></p></div><button id="closeSource">关闭</button></div><div class="source-actions"><button id="copyPath">复制路径与行号</button><a id="githubLink" target="_blank" rel="noreferrer">GitHub 固定版本 ↗</a></div><pre id="sourceCode"></pre></dialog>
-<div id="toast" role="status"></div>
-<script src="data/graph-data.js"></script><script src="app.js"></script>
-<script>window.MAP_PUBLIC=true;</script><script src="workbench.js"></script><script src="scenario-compare.js"></script><script src="shared-scenarios.js"></script></body></html>
+  <head>
+    <meta name="robots" content="noindex,nofollow,noarchive"><meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>VoiceHarness · 接口地图与方案模拟</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="workbench.css" />
+  </head>
+  <body class="workbench">
+    <div id="labBar"></div>
+    <dialog id="labDialog"></dialog>
+    <header>
+      <div>
+        <span class="eyebrow">TEAM MAP · 无源码分享版</span>
+        <h1>VoiceHarness <span>接口地图</span></h1>
+      </div>
+      <div class="head-right">
+        <span id="version"></span><button id="about">版本与证据</button
+        ><button id="unknown">未核实事项</button>
+      </div>
+    </header>
+    <div class="toolbar">
+      <label class="search"
+        >搜索模块 / 组件 / 接口<input
+          id="search"
+          placeholder="试试 retrieve、取消、MemorySession"
+          autocomplete="off"
+      /></label>
+      <div class="tools">
+        <button id="overview">全局总览</button
+        ><select id="focus" aria-label="模块聚焦">
+          <option value="">选择模块聚焦…</option></select
+        ><button id="expandAll">展开全部</button
+        ><button id="collapseAll">折叠全部</button
+        ><button id="layout">自动布局</button
+        ><select id="export" aria-label="导出">
+          <option value="">导出…</option>
+          <option value="svg">当前图 SVG</option>
+          <option value="png">当前图 PNG</option>
+          <option value="json">接口数据 JSON</option>
+          <option value="mermaid">当前图 Mermaid</option>
+        </select>
+      </div>
+    </div>
+    <div class="workspace">
+      <aside class="navigator">
+        <div class="side-title">模块与接口 <span id="nodeCount"></span></div>
+        <p class="hint">
+          模块包含组件，组件定义接口。缩进表示归属，不表示调用。
+        </p>
+        <div id="tree"></div>
+      </aside>
+      <main id="graphPanel">
+        <div id="tours" class="tours"></div>
+        <div class="filters">
+          <div id="relations"></div>
+          <label><input type="checkbox" id="proposed" /> 文档建议</label
+          ><label><input type="checkbox" id="allEdges" /> 全部可见关系</label>
+        </div>
+        <div class="context">
+          <div>
+            <strong id="viewTitle">全局总览</strong
+            ><span id="viewNote">点击模块展开；点击接口看直接上下游</span>
+          </div>
+          <div class="context-actions">
+            <button id="clearSelection" hidden>清除选择</button
+            ><button
+              id="fullscreen"
+              aria-pressed="false"
+              aria-controls="graphPanel"
+              title="让关系图占满网页，按 Esc 退出"
+            >
+              网页全屏 ⛶
+            </button>
+          </div>
+        </div>
+        <div id="canvas" tabindex="0" aria-label="可拖动缩放的模块接口关系图">
+          <svg id="graph" role="img" aria-label="VoiceHarness 模块与接口图">
+            <defs id="defs"></defs>
+            <g id="viewport">
+              <g id="backgrounds"></g>
+              <g id="edges"></g>
+              <g id="nodes"></g>
+            </g>
+          </svg>
+          <div class="zoom">
+            <button id="zoomOut" aria-label="缩小">−</button
+            ><span id="zoomLabel">100%</span
+            ><button id="zoomIn" aria-label="放大">＋</button
+            ><button id="fit">适应画布</button>
+          </div>
+          <div id="empty" hidden>
+            当前筛选没有可显示的关系，请调整筛选或返回总览。
+          </div>
+        </div>
+        <footer>
+          <span id="stats"></span
+          ><span
+            >拖动空白处平移 · 滚轮缩放 · 拖动节点调整位置 ·
+            点击连线查看证据</span
+          >
+        </footer>
+      </main>
+      <aside id="detail" class="detail" aria-live="polite"></aside>
+    </div>
+    <dialog id="sourceDialog">
+      <div class="dialog-head">
+        <div>
+          <strong id="sourceTitle"></strong>
+          <p id="sourceLocation"></p>
+        </div>
+        <button id="closeSource">关闭</button>
+      </div>
+      <div class="source-actions">
+        <button id="copyPath">复制路径与行号</button
+        ><a id="githubLink" target="_blank" rel="noreferrer"
+          >GitHub 固定版本 ↗</a
+        >
+      </div>
+      <pre id="sourceCode"></pre>
+    </dialog>
+    <div id="toast" role="status"></div>
+    <script src="data/graph-data.js"></script>
+    <script>window.MAP_PUBLIC=true;</script><script src="app.js"></script>
+    <script src="workbench.js"></script>
+    <script src="scenario-compare.js"></script>
+    <script src="shared-scenarios.js"></script>
+    
+  </body>
+</html>
