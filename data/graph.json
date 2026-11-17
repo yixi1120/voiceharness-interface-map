@@ -1122,7 +1122,11 @@
         "e006",
         "e007",
         "e056",
-        "e072"
+        "e072",
+        "e092",
+        "e093",
+        "e094",
+        "e095"
       ]
     },
     {
@@ -1470,7 +1474,10 @@
       ],
       "relatedEdges": [
         "e038",
-        "e039"
+        "e039",
+        "e099",
+        "e100",
+        "e101"
       ]
     },
     {
@@ -3039,6 +3046,234 @@
         "e090",
         "e091"
       ]
+    },
+    {
+      "id": "web.app",
+      "kind": "component",
+      "module": "web",
+      "parent": "web",
+      "label": "网页 app.js",
+      "summary": "接收桥接消息、更新通话界面并入队回复音频",
+      "status": "Implemented",
+      "componentType": "script",
+      "evidence": [
+        "app:445-461",
+        "app:478-510"
+      ],
+      "callers": [],
+      "consumers": [],
+      "relatedEdges": []
+    },
+    {
+      "id": "web.setCaption",
+      "kind": "interface",
+      "module": "web",
+      "parent": "web.host",
+      "label": "setCaption",
+      "summary": "将模型输出文字变成前端字幕",
+      "status": "Implemented",
+      "signature": "setCaption(epoch: number, caption: string): boolean",
+      "signatureNote": "阅读用签名；完整定义以所附源码为准。闭包和私有方法不是公开接入 API。",
+      "input": "当前通话 epoch、助手字幕",
+      "output": "boolean；更新 caption 并广播状态",
+      "errors": "epoch 不匹配返回 false；截断过长字幕；相同值不重复广播。",
+      "visibility": "public",
+      "evidence": [
+        "host:1269-1276"
+      ],
+      "callers": [
+        {
+          "node": "live.callbacks",
+          "edge": "e092"
+        }
+      ],
+      "consumers": [],
+      "relatedEdges": [
+        "e092",
+        "e096"
+      ]
+    },
+    {
+      "id": "web.setTranscript",
+      "kind": "interface",
+      "module": "web",
+      "parent": "web.host",
+      "label": "setTranscript",
+      "summary": "把用户语音转写送回界面",
+      "status": "Implemented",
+      "signature": "setTranscript(epoch: number, transcript: string): boolean",
+      "signatureNote": "阅读用签名；完整定义以所附源码为准。闭包和私有方法不是公开接入 API。",
+      "input": "当前通话 epoch、用户转写",
+      "output": "boolean；更新 transcript 并广播状态",
+      "errors": "epoch 不匹配返回 false；截断过长文字；相同值不重复广播。",
+      "visibility": "public",
+      "evidence": [
+        "host:1260-1267"
+      ],
+      "callers": [
+        {
+          "node": "live.callbacks",
+          "edge": "e093"
+        }
+      ],
+      "consumers": [],
+      "relatedEdges": [
+        "e093",
+        "e097"
+      ]
+    },
+    {
+      "id": "web.setCallState",
+      "kind": "interface",
+      "module": "web",
+      "parent": "web.host",
+      "label": "setCallState",
+      "summary": "同步 listening 等通话状态",
+      "status": "Implemented",
+      "signature": "setCallState(epoch: number, state: LiveCall[\"state\"]): boolean",
+      "signatureNote": "阅读用签名；完整定义以所附源码为准。闭包和私有方法不是公开接入 API。",
+      "input": "当前通话 epoch、通话状态",
+      "output": "boolean；更新 state 并广播状态",
+      "errors": "epoch 不匹配返回 false；状态相同时不重复广播。",
+      "visibility": "public",
+      "evidence": [
+        "host:1237-1243"
+      ],
+      "callers": [
+        {
+          "node": "live.callbacks",
+          "edge": "e094"
+        }
+      ],
+      "consumers": [],
+      "relatedEdges": [
+        "e094",
+        "e098"
+      ]
+    },
+    {
+      "id": "web.sendOutputAudio",
+      "kind": "interface",
+      "module": "web",
+      "parent": "web.host",
+      "label": "sendOutputAudio",
+      "summary": "把回复音频发送到已连接的 Host 客户端",
+      "status": "Implemented",
+      "signature": "sendOutputAudio(epoch: number, pcm16: Uint8Array): boolean",
+      "signatureNote": "阅读用签名；完整定义以所附源码为准。闭包和私有方法不是公开接入 API。",
+      "input": "当前通话 epoch、PCM16 音频",
+      "output": "是否转发；二进制帧包含 epoch、outputId 和 PCM",
+      "errors": "epoch/长度/静音检查失败返回 false；断连或背压报告故障并返回 false；发送异常记录后抛出。成功发送不代表播放完成。",
+      "visibility": "public",
+      "evidence": [
+        "host:1449-1515"
+      ],
+      "callers": [
+        {
+          "node": "live.callbacks",
+          "edge": "e095"
+        }
+      ],
+      "consumers": [
+        {
+          "node": "web.handleMessage",
+          "edge": "e100"
+        }
+      ],
+      "relatedEdges": [
+        "e095",
+        "e100"
+      ]
+    },
+    {
+      "id": "web.broadcastState",
+      "kind": "interface",
+      "module": "web",
+      "parent": "web.host",
+      "label": "broadcastState → sendState",
+      "summary": "将通话状态打包为 Host 协议消息",
+      "status": "Implemented",
+      "signature": "broadcastState(): void; sendState(status: LiveStatus): void",
+      "signatureNote": "阅读用签名；完整定义以所附源码为准。闭包和私有方法不是公开接入 API。",
+      "input": "getStatus() 产生的当前状态",
+      "output": "host.state 消息，含 epoch 与投影后的 status",
+      "errors": "经 sendHost 发送；状态广播不是播放完成回执。",
+      "visibility": "private",
+      "evidence": [
+        "host:2869-2894"
+      ],
+      "callers": [
+        {
+          "node": "web.setCaption",
+          "edge": "e096"
+        },
+        {
+          "node": "web.setTranscript",
+          "edge": "e097"
+        },
+        {
+          "node": "web.setCallState",
+          "edge": "e098"
+        }
+      ],
+      "consumers": [],
+      "relatedEdges": [
+        "e096",
+        "e097",
+        "e098",
+        "e099"
+      ]
+    },
+    {
+      "id": "web.bridgeReturn",
+      "kind": "interface",
+      "module": "web",
+      "parent": "web.bridge",
+      "label": "onState / onAudio 回调",
+      "summary": "通过 bridge 把状态和音频转回网页",
+      "status": "Implemented",
+      "signature": "onState(epoch, status); onAudio(frame)",
+      "signatureNote": "阅读用签名；完整定义以所附源码为准。闭包和私有方法不是公开接入 API。",
+      "input": "DaemonClient 状态回调或回复音频帧",
+      "output": "网页 WebSocket 的 state JSON 或含 outputId 的音频帧",
+      "errors": "JSON 只发给已认证客户端；音频还要求 socket 打开；无法解码的音频帧丢弃。clear_output 另行转发。",
+      "visibility": "assembly",
+      "evidence": [
+        "bridge:396-407",
+        "bridge:303-315",
+        "bridge:479-488"
+      ],
+      "callers": [],
+      "consumers": [],
+      "relatedEdges": [
+        "e101",
+        "e102"
+      ]
+    },
+    {
+      "id": "web.receiveOutput",
+      "kind": "interface",
+      "module": "web",
+      "parent": "web.app",
+      "label": "WebSocket message 回调",
+      "summary": "网页显示状态、字幕并接收回复音频",
+      "status": "Implemented",
+      "signature": "socket.addEventListener(\"message\", (event) => …)",
+      "signatureNote": "阅读用签名；完整定义以所附源码为准。闭包和私有方法不是公开接入 API。",
+      "input": "bridge 发来的 JSON 或二进制音频",
+      "output": "handleMessage → applyStatus；音频入 audio.enqueue 队列",
+      "errors": "JSON 解析失败显示协议错误；非法音频帧不入队；clear_output 清空输出。音频入队不代表用户已听到。",
+      "visibility": "closure",
+      "evidence": [
+        "app:445-461",
+        "app:478-510",
+        "app:259-267"
+      ],
+      "callers": [],
+      "consumers": [],
+      "relatedEdges": [
+        "e102"
+      ]
     }
   ],
   "edges": [
@@ -4158,6 +4393,144 @@
         "doc:38"
       ],
       "route": "proposal"
+    },
+    {
+      "id": "e092",
+      "source": "live.callbacks",
+      "target": "web.setCaption",
+      "type": "Calls",
+      "label": "输出文字增量 → 字幕",
+      "status": "Implemented",
+      "evidence": [
+        "live:3221-3243",
+        "host:1269-1276"
+      ]
+    },
+    {
+      "id": "e093",
+      "source": "live.callbacks",
+      "target": "web.setTranscript",
+      "type": "Calls",
+      "label": "用户转写完成 → 转写状态",
+      "status": "Implemented",
+      "evidence": [
+        "live:3221-3243",
+        "host:1260-1267"
+      ]
+    },
+    {
+      "id": "e094",
+      "source": "live.callbacks",
+      "target": "web.setCallState",
+      "type": "Calls",
+      "label": "输入被拒绝后恢复 listening",
+      "status": "Implemented",
+      "evidence": [
+        "live:3218-3220",
+        "host:1237-1243"
+      ]
+    },
+    {
+      "id": "e095",
+      "source": "live.callbacks",
+      "target": "web.sendOutputAudio",
+      "type": "Calls",
+      "label": "输出音频增量 → Host 发送",
+      "status": "Implemented",
+      "evidence": [
+        "live:3273-3304",
+        "host:1449-1515"
+      ]
+    },
+    {
+      "id": "e096",
+      "source": "web.setCaption",
+      "target": "web.broadcastState",
+      "type": "Calls",
+      "label": "状态更新后广播",
+      "status": "Implemented",
+      "evidence": [
+        "host:1269-1276",
+        "host:2869-2894"
+      ]
+    },
+    {
+      "id": "e097",
+      "source": "web.setTranscript",
+      "target": "web.broadcastState",
+      "type": "Calls",
+      "label": "状态更新后广播",
+      "status": "Implemented",
+      "evidence": [
+        "host:1260-1267",
+        "host:2869-2894"
+      ]
+    },
+    {
+      "id": "e098",
+      "source": "web.setCallState",
+      "target": "web.broadcastState",
+      "type": "Calls",
+      "label": "状态更新后广播",
+      "status": "Implemented",
+      "evidence": [
+        "host:1237-1243",
+        "host:2869-2894"
+      ]
+    },
+    {
+      "id": "e099",
+      "source": "web.broadcastState",
+      "target": "web.handleMessage",
+      "type": "Emits / Handles",
+      "label": "host.state 经 WebSocket 到 DaemonClient",
+      "status": "Implemented",
+      "evidence": [
+        "host:2869-2894",
+        "client:302-309",
+        "client:382-392"
+      ]
+    },
+    {
+      "id": "e100",
+      "source": "web.sendOutputAudio",
+      "target": "web.handleMessage",
+      "type": "Data Flow",
+      "label": "二进制回复音频帧",
+      "status": "Implemented",
+      "evidence": [
+        "host:1449-1515",
+        "client:261-282"
+      ]
+    },
+    {
+      "id": "e101",
+      "source": "web.handleMessage",
+      "target": "web.bridgeReturn",
+      "type": "Emits / Handles",
+      "label": "分派 onState / onAudio 回调",
+      "status": "Implemented",
+      "evidence": [
+        "client:261-282",
+        "client:302-309",
+        "client:382-392",
+        "bridge:396-407"
+      ]
+    },
+    {
+      "id": "e102",
+      "source": "web.bridgeReturn",
+      "target": "web.receiveOutput",
+      "type": "Emits / Handles",
+      "label": "state / 音频帧 → 浏览器 WebSocket",
+      "status": "Implemented",
+      "evidence": [
+        "bridge:396-407",
+        "bridge:303-315",
+        "bridge:479-488",
+        "app:445-461",
+        "app:478-510"
+      ]
     }
   ],
   "hierarchy": [
@@ -4715,6 +5088,46 @@
       "type": "Contains",
       "source": "voice",
       "target": "prop.turn"
+    },
+    {
+      "type": "Contains",
+      "source": "web",
+      "target": "web.app"
+    },
+    {
+      "type": "Defines",
+      "source": "web.host",
+      "target": "web.setCaption"
+    },
+    {
+      "type": "Defines",
+      "source": "web.host",
+      "target": "web.setTranscript"
+    },
+    {
+      "type": "Defines",
+      "source": "web.host",
+      "target": "web.setCallState"
+    },
+    {
+      "type": "Defines",
+      "source": "web.host",
+      "target": "web.sendOutputAudio"
+    },
+    {
+      "type": "Defines",
+      "source": "web.host",
+      "target": "web.broadcastState"
+    },
+    {
+      "type": "Defines",
+      "source": "web.bridge",
+      "target": "web.bridgeReturn"
+    },
+    {
+      "type": "Defines",
+      "source": "web.app",
+      "target": "web.receiveOutput"
     }
   ],
   "evidence": {
@@ -6831,6 +7244,176 @@
       "fileSha256": "9d33e6f7c0641fa5d7653fad3cbd92ff8df96e83c7f6241a8593e0e69cd41992",
       "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
       "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness-web/src/daemon-client.ts#L298-L301"
+    },
+    "live:3273-3304": {
+      "id": "live:3273-3304",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 3273,
+      "endLine": 3304,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L3273-L3304"
+    },
+    "host:1269-1276": {
+      "id": "host:1269-1276",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/host/qwen-live-harness-host-coordinator.ts",
+      "line": 1269,
+      "endLine": 1276,
+      "fileSha256": "0d6bafa12c8c98bc3ec34348825b94275abe010a867f2c159ef7dba98f3fafd9",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/host/qwen-live-harness-host-coordinator.ts#L1269-L1276"
+    },
+    "host:1260-1267": {
+      "id": "host:1260-1267",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/host/qwen-live-harness-host-coordinator.ts",
+      "line": 1260,
+      "endLine": 1267,
+      "fileSha256": "0d6bafa12c8c98bc3ec34348825b94275abe010a867f2c159ef7dba98f3fafd9",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/host/qwen-live-harness-host-coordinator.ts#L1260-L1267"
+    },
+    "host:1237-1243": {
+      "id": "host:1237-1243",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/host/qwen-live-harness-host-coordinator.ts",
+      "line": 1237,
+      "endLine": 1243,
+      "fileSha256": "0d6bafa12c8c98bc3ec34348825b94275abe010a867f2c159ef7dba98f3fafd9",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/host/qwen-live-harness-host-coordinator.ts#L1237-L1243"
+    },
+    "host:1449-1515": {
+      "id": "host:1449-1515",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/host/qwen-live-harness-host-coordinator.ts",
+      "line": 1449,
+      "endLine": 1515,
+      "fileSha256": "0d6bafa12c8c98bc3ec34348825b94275abe010a867f2c159ef7dba98f3fafd9",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/host/qwen-live-harness-host-coordinator.ts#L1449-L1515"
+    },
+    "host:2869-2894": {
+      "id": "host:2869-2894",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/host/qwen-live-harness-host-coordinator.ts",
+      "line": 2869,
+      "endLine": 2894,
+      "fileSha256": "0d6bafa12c8c98bc3ec34348825b94275abe010a867f2c159ef7dba98f3fafd9",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/host/qwen-live-harness-host-coordinator.ts#L2869-L2894"
+    },
+    "client:261-282": {
+      "id": "client:261-282",
+      "kind": "source",
+      "path": "packages/qwen-live-harness-web/src/daemon-client.ts",
+      "line": 261,
+      "endLine": 282,
+      "fileSha256": "9d33e6f7c0641fa5d7653fad3cbd92ff8df96e83c7f6241a8593e0e69cd41992",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness-web/src/daemon-client.ts#L261-L282"
+    },
+    "client:302-309": {
+      "id": "client:302-309",
+      "kind": "source",
+      "path": "packages/qwen-live-harness-web/src/daemon-client.ts",
+      "line": 302,
+      "endLine": 309,
+      "fileSha256": "9d33e6f7c0641fa5d7653fad3cbd92ff8df96e83c7f6241a8593e0e69cd41992",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness-web/src/daemon-client.ts#L302-L309"
+    },
+    "client:382-392": {
+      "id": "client:382-392",
+      "kind": "source",
+      "path": "packages/qwen-live-harness-web/src/daemon-client.ts",
+      "line": 382,
+      "endLine": 392,
+      "fileSha256": "9d33e6f7c0641fa5d7653fad3cbd92ff8df96e83c7f6241a8593e0e69cd41992",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness-web/src/daemon-client.ts#L382-L392"
+    },
+    "bridge:396-407": {
+      "id": "bridge:396-407",
+      "kind": "source",
+      "path": "packages/qwen-live-harness-web/src/bridge.ts",
+      "line": 396,
+      "endLine": 407,
+      "fileSha256": "59e10b62da54b149960831df236430121c39a84e9953defce1fb96289da648ce",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness-web/src/bridge.ts#L396-L407"
+    },
+    "bridge:303-315": {
+      "id": "bridge:303-315",
+      "kind": "source",
+      "path": "packages/qwen-live-harness-web/src/bridge.ts",
+      "line": 303,
+      "endLine": 315,
+      "fileSha256": "59e10b62da54b149960831df236430121c39a84e9953defce1fb96289da648ce",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness-web/src/bridge.ts#L303-L315"
+    },
+    "bridge:479-488": {
+      "id": "bridge:479-488",
+      "kind": "source",
+      "path": "packages/qwen-live-harness-web/src/bridge.ts",
+      "line": 479,
+      "endLine": 488,
+      "fileSha256": "59e10b62da54b149960831df236430121c39a84e9953defce1fb96289da648ce",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness-web/src/bridge.ts#L479-L488"
+    },
+    "app:445-461": {
+      "id": "app:445-461",
+      "kind": "source",
+      "path": "packages/qwen-live-harness-web/public/js/app.js",
+      "line": 445,
+      "endLine": 461,
+      "fileSha256": "11147f31c75d1dce8bd61b7a731865e7d101587cd2551497dd2259465eb0469f",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness-web/public/js/app.js#L445-L461"
+    },
+    "app:478-510": {
+      "id": "app:478-510",
+      "kind": "source",
+      "path": "packages/qwen-live-harness-web/public/js/app.js",
+      "line": 478,
+      "endLine": 510,
+      "fileSha256": "11147f31c75d1dce8bd61b7a731865e7d101587cd2551497dd2259465eb0469f",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness-web/public/js/app.js#L478-L510"
+    },
+    "app:259-267": {
+      "id": "app:259-267",
+      "kind": "source",
+      "path": "packages/qwen-live-harness-web/public/js/app.js",
+      "line": 259,
+      "endLine": 267,
+      "fileSha256": "11147f31c75d1dce8bd61b7a731865e7d101587cd2551497dd2259465eb0469f",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness-web/public/js/app.js#L259-L267"
+    },
+    "live:3221-3243": {
+      "id": "live:3221-3243",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 3221,
+      "endLine": 3243,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L3221-L3243"
+    },
+    "live:3218-3220": {
+      "id": "live:3218-3220",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 3218,
+      "endLine": 3220,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L3218-L3220"
     }
   },
   "unverified": [
@@ -6925,6 +7508,20 @@
         "back.cancel",
         "back.agentPrompt",
         "back.write"
+      ]
+    },
+    {
+      "id": "frontend-return",
+      "label": "回复如何回到网页",
+      "summary": "从 LiveSession 回调追踪 Host、DaemonClient、bridge 到浏览器；状态与音频分两路。",
+      "nodes": [
+        "live.callbacks",
+        "web.setCaption",
+        "web.sendOutputAudio",
+        "web.broadcastState",
+        "web.handleMessage",
+        "web.bridgeReturn",
+        "web.receiveOutput"
       ]
     }
   ]

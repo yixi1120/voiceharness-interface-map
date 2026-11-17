@@ -406,6 +406,7 @@
       };
       const mainPairs = new Set([
         'web|live',
+        'live|web',
         'voice|live',
         'live|eff',
         'live|memory',
@@ -439,6 +440,7 @@
       state.renderEdges = [...chosen.values()];
       const labels = {
         'web|live': '装配与 Host 回调',
+        'live|web': '状态 / 字幕 / 音频',
         'voice|live': '对话 / 工具事件',
         'live|eff': '音频 / 回执 / 上下文代理',
         'live|memory': '附加 / 检索 / 发布',
