@@ -336,8 +336,8 @@
     } else {
       const order = [
         ['web'],
-        ['voice', 'live', 'backend'],
-        ['memory', 'eff', 'safety'],
+        ['memory', 'live', 'backend'],
+        ['voice', 'eff', 'safety'],
       ];
       const known = new Set(order.flat());
       const extra = layouts
@@ -407,7 +407,7 @@
       const mainPairs = new Set([
         'web|live',
         'live|web',
-        'voice|live',
+        'voice|eff',
         'live|eff',
         'live|memory',
         'memory|live',
@@ -416,7 +416,9 @@
         'live|backend',
         'backend|live',
         'live|safety',
+        'safety|live',
         'safety|backend',
+        'backend|safety',
       ]);
       for (const e of state.renderEdges) {
         const pair = e.source + '|' + e.target;
@@ -429,7 +431,9 @@
           continue;
         const preferred = {
           'backend|live': 'Emits / Handles',
-          'voice|live': 'Emits / Handles',
+          'voice|eff': 'Emits / Handles',
+          'eff|live': 'Emits / Handles',
+          'safety|live': 'Data Flow',
         };
         const score = (x) => (x.type === preferred[pair] ? -1 : rank[x.type]);
         const key =
@@ -441,19 +445,24 @@
       const labels = {
         'web|live': '装配与 Host 回调',
         'live|web': '状态 / 字幕 / 音频',
-        'voice|live': '对话 / 工具事件',
+        'voice|eff': '语音事件 / 恢复请求',
         'live|eff': '音频 / 回执 / 上下文代理',
         'live|memory': '附加 / 检索 / 发布',
         'memory|live': '记忆文本与回执',
-        'eff|live': 'runtimeContext 回调',
+        'eff|live': '语音 / 恢复 / 压缩事件',
         'eff|voice': '传输 / 上下文装载',
         'live|backend': '提交 / 订阅 / 取消',
         'backend|live': '任务与授权事件',
         'live|safety': '工具分发与审批',
+        'safety|live': '工具 / 审批回执',
         'safety|backend': '投递授权决定',
+        'backend|safety': '授权投递回执',
       };
       const expected = {
-        'voice|live': 'Emits / Handles',
+        'voice|eff': 'Emits / Handles',
+        'eff|live': 'Emits / Handles',
+        'safety|live': 'Data Flow',
+        'backend|safety': 'Data Flow',
         'backend|live': 'Emits / Handles',
         'memory|live': 'Data Flow',
       };
@@ -784,7 +793,9 @@
         ? tour.summary
         : state.focus
           ? '点击组件展开接口；外围模块保留跨模块关系。'
-          : '默认聚合跨模块关系；展开组件后，可勾选“全部可见关系”。';
+          : state.allEdges
+            ? '显示当前筛选下全部已收录关系；实线调用、虚线数据流、点线事件，返回值不等于执行成功。'
+            : '仅显示主要链路；部分回执、管理与辅助关系已折叠。勾选“全部可见关系”查看；没有箭头不代表没有返回。';
     if (
       D.meta.diffOverlay &&
       !state.selected &&

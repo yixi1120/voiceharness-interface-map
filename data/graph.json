@@ -372,11 +372,27 @@
         {
           "node": "web.onMemory",
           "edge": "e034"
+        },
+        {
+          "node": "web.getMemoryState",
+          "edge": "e133"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "web.onMemory",
+          "edge": "e115"
+        },
+        {
+          "node": "web.getMemoryState",
+          "edge": "e134"
+        }
+      ],
       "relatedEdges": [
-        "e034"
+        "e034",
+        "e115",
+        "e133",
+        "e134"
       ]
     },
     {
@@ -506,13 +522,18 @@
         {
           "node": "live.publish",
           "edge": "e022"
+        },
+        {
+          "node": "live.runtime",
+          "edge": "e118"
         }
       ],
       "relatedEdges": [
         "e017",
         "e020",
         "e022",
-        "e043"
+        "e043",
+        "e118"
       ]
     },
     {
@@ -597,10 +618,16 @@
           "edge": "e013"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "live.memoryTool",
+          "edge": "e116"
+        }
+      ],
       "relatedEdges": [
         "e013",
-        "e085"
+        "e085",
+        "e116"
       ]
     },
     {
@@ -803,10 +830,21 @@
           "edge": "e044"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "live.publish",
+          "edge": "e117"
+        },
+        {
+          "node": "live.runtime",
+          "edge": "e119"
+        }
+      ],
       "relatedEdges": [
         "e021",
-        "e044"
+        "e044",
+        "e117",
+        "e119"
       ]
     },
     {
@@ -957,7 +995,8 @@
         "e012",
         "e013",
         "e018",
-        "e019"
+        "e019",
+        "e116"
       ]
     },
     {
@@ -1000,7 +1039,9 @@
         "e022",
         "e023",
         "e037",
-        "e053"
+        "e053",
+        "e117",
+        "e123"
       ]
     },
     {
@@ -1069,7 +1110,9 @@
         "e043",
         "e044",
         "e049",
-        "e050"
+        "e050",
+        "e118",
+        "e119"
       ]
     },
     {
@@ -1119,14 +1162,14 @@
       "callers": [],
       "consumers": [],
       "relatedEdges": [
-        "e006",
         "e007",
-        "e056",
         "e072",
         "e092",
         "e093",
         "e094",
-        "e095"
+        "e095",
+        "e103",
+        "e106"
       ]
     },
     {
@@ -1158,7 +1201,9 @@
         "e011",
         "e057",
         "e072",
-        "e073"
+        "e073",
+        "e107",
+        "e125"
       ]
     },
     {
@@ -1233,7 +1278,10 @@
       "relatedEdges": [
         "e063",
         "e064",
-        "e065"
+        "e065",
+        "e108",
+        "e113",
+        "e114"
       ]
     },
     {
@@ -1257,7 +1305,8 @@
       "callers": [],
       "consumers": [],
       "relatedEdges": [
-        "e068"
+        "e068",
+        "e120"
       ]
     },
     {
@@ -1503,7 +1552,9 @@
       "relatedEdges": [
         "e030",
         "e031",
-        "e038"
+        "e038",
+        "e131",
+        "e136"
       ]
     },
     {
@@ -1517,12 +1568,13 @@
       "signature": "onMemoryAction(action: LiveMemoryAction): LiveMemoryState",
       "signatureNote": "阅读用签名；完整 TypeScript 定义以所附源码为准。私有方法和闭包不是公开接入 API。",
       "input": "Host 已解析的记忆管理动作",
-      "output": "MemoryService.state()",
+      "output": "返回 LiveMemoryState，但 Host 只等待操作完成；管理回执通过 getMemoryState 重新读取",
       "errors": "映射 MemoryStoreError/其他错误为 UI 文案；不是会话级工具处理器。",
       "visibility": "callback",
       "route": "management",
       "evidence": [
-        "daemon:424-443"
+        "daemon:424-443",
+        "host:2047-2054"
       ],
       "callers": [
         {
@@ -1535,7 +1587,8 @@
         "e031",
         "e032",
         "e033",
-        "e034"
+        "e034",
+        "e115"
       ]
     },
     {
@@ -1587,7 +1640,8 @@
         "e042",
         "e075",
         "e076",
-        "e077"
+        "e077",
+        "e128"
       ]
     },
     {
@@ -1826,7 +1880,9 @@
         "e049",
         "e050",
         "e051",
-        "e052"
+        "e052",
+        "e106",
+        "e121"
       ]
     },
     {
@@ -1850,7 +1906,8 @@
       "callers": [],
       "consumers": [],
       "relatedEdges": [
-        "e055"
+        "e055",
+        "e104"
       ]
     },
     {
@@ -1930,10 +1987,17 @@
           "edge": "e023"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "live.publish",
+          "edge": "e123"
+        }
+      ],
       "relatedEdges": [
         "e023",
-        "e024"
+        "e024",
+        "e122",
+        "e123"
       ]
     },
     {
@@ -1960,10 +2024,17 @@
           "edge": "e078"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "live.audio",
+          "edge": "e127"
+        }
+      ],
       "relatedEdges": [
         "e078",
-        "e079"
+        "e079",
+        "e126",
+        "e127"
       ]
     },
     {
@@ -1990,10 +2061,17 @@
           "edge": "e073"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "live.dispatch",
+          "edge": "e125"
+        }
+      ],
       "relatedEdges": [
         "e073",
-        "e074"
+        "e074",
+        "e124",
+        "e125"
       ]
     },
     {
@@ -2013,7 +2091,9 @@
       "relatedEdges": [
         "e058",
         "e059",
-        "e090"
+        "e090",
+        "e129",
+        "e130"
       ]
     },
     {
@@ -2062,9 +2142,15 @@
           "edge": "e024"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "eff.proxyContext",
+          "edge": "e122"
+        }
+      ],
       "relatedEdges": [
-        "e024"
+        "e024",
+        "e122"
       ]
     },
     {
@@ -2091,9 +2177,15 @@
           "edge": "e052"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "eff.compact",
+          "edge": "e121"
+        }
+      ],
       "relatedEdges": [
-        "e052"
+        "e052",
+        "e121"
       ]
     },
     {
@@ -2218,9 +2310,15 @@
           "edge": "e064"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "live.backendEvent",
+          "edge": "e108"
+        }
+      ],
       "relatedEdges": [
-        "e064"
+        "e064",
+        "e108"
       ]
     },
     {
@@ -2241,10 +2339,22 @@
       "evidence": [
         "broker:196-215"
       ],
-      "callers": [],
-      "consumers": [],
+      "callers": [
+        {
+          "node": "live.permissionRespond",
+          "edge": "e111"
+        }
+      ],
+      "consumers": [
+        {
+          "node": "live.permissionRespond",
+          "edge": "e112"
+        }
+      ],
       "relatedEdges": [
-        "e066"
+        "e066",
+        "e111",
+        "e112"
       ]
     },
     {
@@ -2274,7 +2384,9 @@
       "consumers": [],
       "relatedEdges": [
         "e066",
-        "e067"
+        "e067",
+        "e109",
+        "e110"
       ]
     },
     {
@@ -2295,9 +2407,22 @@
       "evidence": [
         "broker:216-229"
       ],
-      "callers": [],
-      "consumers": [],
-      "relatedEdges": []
+      "callers": [
+        {
+          "node": "live.backendEvent",
+          "edge": "e113"
+        }
+      ],
+      "consumers": [
+        {
+          "node": "live.backendEvent",
+          "edge": "e114"
+        }
+      ],
+      "relatedEdges": [
+        "e113",
+        "e114"
+      ]
     },
     {
       "id": "safe.dispatch",
@@ -2323,9 +2448,15 @@
           "edge": "e057"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "live.dispatch",
+          "edge": "e107"
+        }
+      ],
       "relatedEdges": [
-        "e057"
+        "e057",
+        "e107"
       ]
     },
     {
@@ -2352,9 +2483,15 @@
           "edge": "e058"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "voice.transport",
+          "edge": "e129"
+        }
+      ],
       "relatedEdges": [
-        "e058"
+        "e058",
+        "e129"
       ]
     },
     {
@@ -2381,9 +2518,15 @@
           "edge": "e059"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "voice.transport",
+          "edge": "e130"
+        }
+      ],
       "relatedEdges": [
-        "e059"
+        "e059",
+        "e130"
       ]
     },
     {
@@ -2621,9 +2764,15 @@
           "edge": "e068"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "live.stopTask",
+          "edge": "e120"
+        }
+      ],
       "relatedEdges": [
-        "e068"
+        "e068",
+        "e120"
       ]
     },
     {
@@ -2650,9 +2799,15 @@
           "edge": "e067"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "safe.deliver",
+          "edge": "e110"
+        }
+      ],
       "relatedEdges": [
-        "e067"
+        "e067",
+        "e110"
       ]
     },
     {
@@ -2759,10 +2914,17 @@
           "edge": "e075"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "web.handlers",
+          "edge": "e128"
+        }
+      ],
       "relatedEdges": [
         "e075",
-        "e078"
+        "e078",
+        "e127",
+        "e128"
       ]
     },
     {
@@ -2847,9 +3009,15 @@
           "edge": "e079"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "eff.proxyAudio",
+          "edge": "e126"
+        }
+      ],
       "relatedEdges": [
-        "e079"
+        "e079",
+        "e126"
       ]
     },
     {
@@ -2898,9 +3066,15 @@
           "edge": "e074"
         }
       ],
-      "consumers": [],
+      "consumers": [
+        {
+          "node": "eff.proxyOutput",
+          "edge": "e124"
+        }
+      ],
       "relatedEdges": [
-        "e074"
+        "e074",
+        "e124"
       ]
     },
     {
@@ -3221,7 +3395,9 @@
         "e096",
         "e097",
         "e098",
-        "e099"
+        "e099",
+        "e137",
+        "e138"
       ]
     },
     {
@@ -3273,6 +3449,207 @@
       "consumers": [],
       "relatedEdges": [
         "e102"
+      ]
+    },
+    {
+      "id": "eff.handlers",
+      "kind": "interface",
+      "module": "eff",
+      "parent": "eff.recovery",
+      "label": "openTransport 的 handlers",
+      "summary": "恢复代理接收真实连接的事件，再转交主流程",
+      "status": "Implemented",
+      "signature": "handlers: QwenRealtimeCallbacks",
+      "signatureNote": "阅读用签名；闭包不是独立公共 API，真实归属和完整定义见源码。",
+      "input": "当前传输的对话、工具调用、转写及上下文用量事件",
+      "output": "通过 generation 检查后转发给上层 callbacks；记录转写/请求压缩",
+      "errors": "旧 generation 的回调丢弃；退役工具 ID 冲突触发恢复失败；达到阈值仅请求压缩，仍需 canCompact 检查。",
+      "visibility": "internal callback",
+      "evidence": [
+        "rec:133-216"
+      ],
+      "callers": [],
+      "consumers": [],
+      "relatedEdges": [
+        "e006",
+        "e056",
+        "e103",
+        "e105"
+      ]
+    },
+    {
+      "id": "voice.recoveryRequest",
+      "kind": "interface",
+      "module": "voice",
+      "parent": "voice.transport",
+      "label": "onRecoveryNeeded",
+      "summary": "将需要恢复的传输错误交给恢复层",
+      "status": "Implemented",
+      "signature": "callbacks.onRecoveryNeeded(request: RealtimeRecoveryRequest): void",
+      "signatureNote": "阅读用签名；闭包不是独立公共 API，真实归属和完整定义见源码。",
+      "input": "code、authority、responseId、可恢复 input 及事件上下文",
+      "output": "回调通知恢复代理；旧连接关闭",
+      "errors": "没有注册恢复回调时沿原有失败策略；发出恢复请求不代表恢复成功。",
+      "visibility": "internal callback",
+      "evidence": [
+        "rt:1444-1480"
+      ],
+      "callers": [],
+      "consumers": [],
+      "relatedEdges": [
+        "e104"
+      ]
+    },
+    {
+      "id": "voice.usage",
+      "kind": "interface",
+      "module": "voice",
+      "parent": "voice.transport",
+      "label": "onContextUsage",
+      "summary": "报告 token 用量，让恢复层判断是否请求压缩",
+      "status": "Implemented",
+      "signature": "callbacks.onContextUsage(event): void",
+      "signatureNote": "阅读用签名；闭包不是独立公共 API，真实归属和完整定义见源码。",
+      "input": "已完成响应的有效 inputTokens 及事件上下文",
+      "output": "上下文用量事件",
+      "errors": "仅在响应 completed 且 token 数有效时发送；不是每个响应都触发压缩。",
+      "visibility": "internal callback",
+      "evidence": [
+        "rt:4861-4878"
+      ],
+      "callers": [],
+      "consumers": [],
+      "relatedEdges": [
+        "e105"
+      ]
+    },
+    {
+      "id": "live.permissionDecision",
+      "kind": "interface",
+      "module": "live",
+      "parent": "live.session",
+      "label": "onPermissionDecision",
+      "summary": "接收 Broker 的实际授权投递结果",
+      "status": "Implemented",
+      "signature": "onPermissionDecision(event: PermissionDecisionEvent): void",
+      "signatureNote": "阅读用签名；闭包不是独立公共 API，真实归属和完整定义见源码。",
+      "input": "pending、requestedDecision、decision、auto、outcome、permissionMode、reason?",
+      "output": "记录决定、更新等待任务、撤回过期审批提示",
+      "errors": "无活动会话或正在停止时不更新当前播报；delivered 只是授权决定已投递，不代表任务执行成功。",
+      "visibility": "internal callback",
+      "evidence": [
+        "live:2482-2520",
+        "live:759-764"
+      ],
+      "callers": [],
+      "consumers": [],
+      "relatedEdges": [
+        "e109"
+      ]
+    },
+    {
+      "id": "live.permissionRespond",
+      "kind": "interface",
+      "module": "live",
+      "parent": "live.session",
+      "label": "toolHandlers 的授权回复处理器",
+      "summary": "把语音工具里的授权答复交给 Broker",
+      "status": "Implemented",
+      "signature": "handlers.set(RESPOND_PERMISSION_TOOL_NAME, async (args) => …)",
+      "signatureNote": "阅读用签名；闭包不是独立公共 API，真实归属和完整定义见源码。",
+      "input": "request_id、decision、note?",
+      "output": "按 Broker outcome 形成工具结果，并更新任务/待审批状态",
+      "errors": "校验决策枚举；not_found 返回错误；带限制的 note 另走原有后端指令路径，投票通道本身不携带自由文本。",
+      "visibility": "internal callback",
+      "evidence": [
+        "live:5263-5320"
+      ],
+      "callers": [],
+      "consumers": [],
+      "relatedEdges": [
+        "e111",
+        "e112"
+      ]
+    },
+    {
+      "id": "web.getMemoryState",
+      "kind": "interface",
+      "module": "web",
+      "parent": "web.daemon",
+      "label": "getMemoryState 回调",
+      "summary": "向 Host 提供重新读取记忆状态的入口",
+      "status": "Implemented",
+      "signature": "getMemoryState: () => LiveMemoryState",
+      "input": "无",
+      "output": "调用 MemoryService.state() 返回快照",
+      "errors": "与 onMemoryAction 返回值是不同入口；不执行检索。",
+      "visibility": "internal callback",
+      "evidence": [
+        "daemon:423-439"
+      ],
+      "callers": [
+        {
+          "node": "web.memoryState",
+          "edge": "e132"
+        }
+      ],
+      "consumers": [
+        {
+          "node": "web.memoryState",
+          "edge": "e135"
+        }
+      ],
+      "relatedEdges": [
+        "e132",
+        "e133",
+        "e134",
+        "e135"
+      ]
+    },
+    {
+      "id": "web.memoryState",
+      "kind": "interface",
+      "module": "web",
+      "parent": "web.host",
+      "label": "memoryState",
+      "summary": "为管理回执和状态广播读取记忆快照",
+      "status": "Implemented",
+      "signature": "memoryState(): LiveMemoryState | undefined",
+      "input": "无；通过注入的 getMemoryState 回调读取",
+      "output": "状态副本，并根据当前 call 覆盖 locked",
+      "errors": "没有 getter 或 getter 无返回值时为 undefined；不使用 onMemoryAction 的返回值。",
+      "visibility": "internal callback",
+      "evidence": [
+        "host:2009-2012",
+        "host:2047-2054"
+      ],
+      "callers": [
+        {
+          "node": "web.handleMemory",
+          "edge": "e131"
+        },
+        {
+          "node": "web.broadcastState",
+          "edge": "e137"
+        }
+      ],
+      "consumers": [
+        {
+          "node": "web.handleMemory",
+          "edge": "e136"
+        },
+        {
+          "node": "web.broadcastState",
+          "edge": "e138"
+        }
+      ],
+      "relatedEdges": [
+        "e131",
+        "e132",
+        "e135",
+        "e136",
+        "e137",
+        "e138"
       ]
     }
   ],
@@ -3340,13 +3717,16 @@
     {
       "id": "e006",
       "source": "voice.dialogue",
-      "target": "live.callbacks",
+      "target": "eff.handlers",
       "type": "Emits / Handles",
-      "label": "onDialogue → callbacksFor",
+      "label": "onDialogue → 恢复代理",
       "status": "Implemented",
       "evidence": [
         "rt:2422-2430",
-        "live:2964-2976"
+        "live:2964-2976",
+        "rec:133-148",
+        "live:1067-1079",
+        "live:747-748"
       ],
       "route": "session"
     },
@@ -3957,13 +4337,16 @@
     {
       "id": "e056",
       "source": "voice.function",
-      "target": "live.callbacks",
+      "target": "eff.handlers",
       "type": "Emits / Handles",
-      "label": "onFunctionCall 请求",
+      "label": "onFunctionCall → 恢复代理",
       "status": "Implemented",
       "evidence": [
         "rt:2899-2908",
-        "live:3684-3690"
+        "live:3684-3690",
+        "rec:169-184",
+        "live:1067-1079",
+        "live:747-748"
       ],
       "route": ""
     },
@@ -4530,6 +4913,425 @@
         "bridge:479-488",
         "app:445-461",
         "app:478-510"
+      ]
+    },
+    {
+      "id": "e103",
+      "source": "eff.handlers",
+      "target": "live.callbacks",
+      "type": "Emits / Handles",
+      "label": "当前传输事件经代理转发；默认装配",
+      "status": "Implemented",
+      "evidence": [
+        "rec:133-216",
+        "live:1067-1079",
+        "live:747-748"
+      ]
+    },
+    {
+      "id": "e104",
+      "source": "voice.recoveryRequest",
+      "target": "eff.recover",
+      "type": "Emits / Handles",
+      "label": "恢复请求 → recover(request)",
+      "status": "Implemented",
+      "evidence": [
+        "rt:1462-1480",
+        "rec:146-157"
+      ]
+    },
+    {
+      "id": "e105",
+      "source": "voice.usage",
+      "target": "eff.handlers",
+      "type": "Emits / Handles",
+      "label": "inputTokens → 阈值判断与压缩请求",
+      "status": "Implemented",
+      "evidence": [
+        "rt:4861-4878",
+        "rec:196-207"
+      ]
+    },
+    {
+      "id": "e106",
+      "source": "eff.compact",
+      "target": "live.callbacks",
+      "type": "Emits / Handles",
+      "label": "压缩切换成功 → onContextCompacted",
+      "status": "Implemented",
+      "evidence": [
+        "rec:476-494",
+        "live:2988-2998"
+      ]
+    },
+    {
+      "id": "e107",
+      "source": "safe.dispatch",
+      "target": "live.dispatch",
+      "type": "Data Flow",
+      "label": "返回 ok / receipt；不是任务完成保证",
+      "status": "Implemented",
+      "evidence": [
+        "dispatch:155-184",
+        "live:4388-4395"
+      ]
+    },
+    {
+      "id": "e108",
+      "source": "safe.request",
+      "target": "live.backendEvent",
+      "type": "Data Flow",
+      "label": "PermissionAskEvent → 自动答复/重复请求分支",
+      "status": "Implemented",
+      "evidence": [
+        "broker:141-148",
+        "live:6033-6064"
+      ]
+    },
+    {
+      "id": "e109",
+      "source": "safe.deliver",
+      "target": "live.permissionDecision",
+      "type": "Emits / Handles",
+      "label": "onDecision → 主流程记录实际投递结果",
+      "status": "Implemented",
+      "evidence": [
+        "broker:314-337",
+        "live:759-764",
+        "live:2482-2520"
+      ]
+    },
+    {
+      "id": "e110",
+      "source": "back.vote",
+      "target": "safe.deliver",
+      "type": "Data Flow",
+      "label": "delivered / already_resolved → outcome",
+      "status": "Implemented",
+      "evidence": [
+        "acp:450-484",
+        "broker:303-337"
+      ]
+    },
+    {
+      "id": "e111",
+      "source": "live.permissionRespond",
+      "target": "safe.respond",
+      "type": "Calls",
+      "label": "requestHandle / decision / note",
+      "status": "Implemented",
+      "evidence": [
+        "live:5277-5294"
+      ]
+    },
+    {
+      "id": "e112",
+      "source": "safe.respond",
+      "target": "live.permissionRespond",
+      "type": "Data Flow",
+      "label": "授权投递结果或 not_found",
+      "status": "Implemented",
+      "evidence": [
+        "broker:196-215",
+        "live:5281-5294"
+      ]
+    },
+    {
+      "id": "e113",
+      "source": "live.backendEvent",
+      "target": "safe.resolved",
+      "type": "Calls",
+      "label": "permission_resolved → 清除待处理审批",
+      "status": "Implemented",
+      "evidence": [
+        "live:6086-6104"
+      ]
+    },
+    {
+      "id": "e114",
+      "source": "safe.resolved",
+      "target": "live.backendEvent",
+      "type": "Data Flow",
+      "label": "返回已移除的 PendingPermission 或 undefined",
+      "status": "Implemented",
+      "evidence": [
+        "broker:216-229",
+        "live:6086-6104"
+      ]
+    },
+    {
+      "id": "e115",
+      "source": "mem.state",
+      "target": "web.onMemory",
+      "type": "Data Flow",
+      "label": "操作回调返回快照；Host 不消费该返回值",
+      "status": "Implemented",
+      "evidence": [
+        "svc:145-158",
+        "daemon:423-439"
+      ]
+    },
+    {
+      "id": "e116",
+      "source": "mem.omnibio",
+      "target": "live.memoryTool",
+      "type": "Data Flow",
+      "label": "succeeded / 更新结果 → 工具回执",
+      "status": "Implemented",
+      "evidence": [
+        "live:4553-4557"
+      ]
+    },
+    {
+      "id": "e117",
+      "source": "mem.message",
+      "target": "live.publish",
+      "type": "Data Flow",
+      "label": "记忆块与 revision → 上下文字符串",
+      "status": "Implemented",
+      "evidence": [
+        "live:2880-2894"
+      ]
+    },
+    {
+      "id": "e118",
+      "source": "mem.blocks",
+      "target": "live.runtime",
+      "type": "Data Flow",
+      "label": "最新记忆 sections → 恢复上下文",
+      "status": "Implemented",
+      "evidence": [
+        "live:1067-1074"
+      ]
+    },
+    {
+      "id": "e119",
+      "source": "mem.message",
+      "target": "live.runtime",
+      "type": "Data Flow",
+      "label": "记忆上下文字符串 → runtimeContext 数组",
+      "status": "Implemented",
+      "evidence": [
+        "live:1067-1074"
+      ]
+    },
+    {
+      "id": "e120",
+      "source": "back.cancel",
+      "target": "live.stopTask",
+      "type": "Data Flow",
+      "label": "取消结果 → stopping / stopped / 错误",
+      "status": "Implemented",
+      "evidence": [
+        "acp:418-448",
+        "live:2311-2350"
+      ]
+    },
+    {
+      "id": "e121",
+      "source": "voice.prime",
+      "target": "eff.compact",
+      "type": "Data Flow",
+      "label": "装载确认 boolean；未确认则放弃切换",
+      "status": "Implemented",
+      "evidence": [
+        "rec:462-469",
+        "rt:3274-3305"
+      ]
+    },
+    {
+      "id": "e122",
+      "source": "voice.context",
+      "target": "eff.proxyContext",
+      "type": "Data Flow",
+      "label": "当前连接接受结果 → accepted",
+      "status": "Implemented",
+      "evidence": [
+        "rec:582-595"
+      ]
+    },
+    {
+      "id": "e123",
+      "source": "eff.proxyContext",
+      "target": "live.publish",
+      "type": "Data Flow",
+      "label": "接受/排队结果 → 是否更新记忆 revision",
+      "status": "Implemented",
+      "evidence": [
+        "rec:582-613",
+        "live:2886-2894"
+      ]
+    },
+    {
+      "id": "e124",
+      "source": "voice.output",
+      "target": "eff.proxyOutput",
+      "type": "Data Flow",
+      "label": "accepted → pendingTools 与返回值",
+      "status": "Implemented",
+      "evidence": [
+        "rec:564-581"
+      ]
+    },
+    {
+      "id": "e125",
+      "source": "eff.proxyOutput",
+      "target": "live.dispatch",
+      "type": "Data Flow",
+      "label": "submitted boolean → 回执失败处理",
+      "status": "Implemented",
+      "evidence": [
+        "rec:564-581",
+        "live:4465-4485"
+      ]
+    },
+    {
+      "id": "e126",
+      "source": "voice.audio",
+      "target": "eff.proxyAudio",
+      "type": "Data Flow",
+      "label": "音频接受或背压 boolean",
+      "status": "Implemented",
+      "evidence": [
+        "rec:530-552"
+      ]
+    },
+    {
+      "id": "e127",
+      "source": "eff.proxyAudio",
+      "target": "live.audio",
+      "type": "Data Flow",
+      "label": "音频接受结果；false 向 Host 传播",
+      "status": "Implemented",
+      "evidence": [
+        "rec:530-552",
+        "live:1281-1312"
+      ]
+    },
+    {
+      "id": "e128",
+      "source": "live.audio",
+      "target": "web.handlers",
+      "type": "Data Flow",
+      "label": "onInputAudio 返回接受/背压结果",
+      "status": "Implemented",
+      "evidence": [
+        "daemon:534-545",
+        "live:1281-1312"
+      ]
+    },
+    {
+      "id": "e129",
+      "source": "safe.key",
+      "target": "voice.transport",
+      "type": "Data Flow",
+      "label": "规范请求 key → 重复接单查找",
+      "status": "Implemented",
+      "evidence": [
+        "rt:2824-2833"
+      ]
+    },
+    {
+      "id": "e130",
+      "source": "safe.admission",
+      "target": "voice.transport",
+      "type": "Data Flow",
+      "label": "是否已接单 → 缓存接单回执",
+      "status": "Implemented",
+      "evidence": [
+        "rt:1697-1706"
+      ]
+    },
+    {
+      "id": "e131",
+      "source": "web.handleMemory",
+      "target": "web.memoryState",
+      "type": "Calls",
+      "label": "管理操作后重新读取状态",
+      "status": "Implemented",
+      "evidence": [
+        "host:2047-2054"
+      ]
+    },
+    {
+      "id": "e132",
+      "source": "web.memoryState",
+      "target": "web.getMemoryState",
+      "type": "Calls",
+      "label": "调用注入的只读 getter",
+      "status": "Implemented",
+      "evidence": [
+        "host:2009-2012",
+        "daemon:423-439"
+      ]
+    },
+    {
+      "id": "e133",
+      "source": "web.getMemoryState",
+      "target": "mem.state",
+      "type": "Calls",
+      "label": "读取服务状态快照",
+      "status": "Implemented",
+      "evidence": [
+        "daemon:423-439",
+        "svc:145-158"
+      ]
+    },
+    {
+      "id": "e134",
+      "source": "mem.state",
+      "target": "web.getMemoryState",
+      "type": "Data Flow",
+      "label": "LiveMemoryState → Host getter",
+      "status": "Implemented",
+      "evidence": [
+        "daemon:423-439",
+        "svc:145-158"
+      ]
+    },
+    {
+      "id": "e135",
+      "source": "web.getMemoryState",
+      "target": "web.memoryState",
+      "type": "Data Flow",
+      "label": "状态快照 → locked 投影",
+      "status": "Implemented",
+      "evidence": [
+        "host:2009-2012",
+        "daemon:423-439"
+      ]
+    },
+    {
+      "id": "e136",
+      "source": "web.memoryState",
+      "target": "web.handleMemory",
+      "type": "Data Flow",
+      "label": "memory → host.memory_result",
+      "status": "Implemented",
+      "evidence": [
+        "host:2047-2054"
+      ]
+    },
+    {
+      "id": "e137",
+      "source": "web.broadcastState",
+      "target": "web.memoryState",
+      "type": "Calls",
+      "label": "状态广播同时读取记忆快照",
+      "status": "Implemented",
+      "evidence": [
+        "host:2873-2893"
+      ]
+    },
+    {
+      "id": "e138",
+      "source": "web.memoryState",
+      "target": "web.broadcastState",
+      "type": "Data Flow",
+      "label": "快照 → host.state.memory",
+      "status": "Implemented",
+      "evidence": [
+        "host:2873-2893"
       ]
     }
   ],
@@ -5128,6 +5930,41 @@
       "type": "Defines",
       "source": "web.app",
       "target": "web.receiveOutput"
+    },
+    {
+      "type": "Defines",
+      "source": "eff.recovery",
+      "target": "eff.handlers"
+    },
+    {
+      "type": "Defines",
+      "source": "voice.transport",
+      "target": "voice.recoveryRequest"
+    },
+    {
+      "type": "Defines",
+      "source": "voice.transport",
+      "target": "voice.usage"
+    },
+    {
+      "type": "Defines",
+      "source": "live.session",
+      "target": "live.permissionDecision"
+    },
+    {
+      "type": "Defines",
+      "source": "live.session",
+      "target": "live.permissionRespond"
+    },
+    {
+      "type": "Defines",
+      "source": "web.daemon",
+      "target": "web.getMemoryState"
+    },
+    {
+      "type": "Defines",
+      "source": "web.host",
+      "target": "web.memoryState"
     }
   ],
   "evidence": {
@@ -7414,6 +8251,416 @@
       "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
       "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
       "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L3218-L3220"
+    },
+    "rec:133-216": {
+      "id": "rec:133-216",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/realtime/recovering-session.ts",
+      "line": 133,
+      "endLine": 216,
+      "fileSha256": "4282181468eeb2ab845d58f1c3baf4dea96312a75f0fe592e74b47116aff461c",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/realtime/recovering-session.ts#L133-L216"
+    },
+    "rt:1444-1480": {
+      "id": "rt:1444-1480",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/realtime/realtime-session.ts",
+      "line": 1444,
+      "endLine": 1480,
+      "fileSha256": "abf87f993403ad9fc9b1bd182806ffa2174877ed72037fbc6e43a8392c6b798e",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/realtime/realtime-session.ts#L1444-L1480"
+    },
+    "rt:4861-4878": {
+      "id": "rt:4861-4878",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/realtime/realtime-session.ts",
+      "line": 4861,
+      "endLine": 4878,
+      "fileSha256": "abf87f993403ad9fc9b1bd182806ffa2174877ed72037fbc6e43a8392c6b798e",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/realtime/realtime-session.ts#L4861-L4878"
+    },
+    "live:2482-2520": {
+      "id": "live:2482-2520",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 2482,
+      "endLine": 2520,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L2482-L2520"
+    },
+    "live:759-764": {
+      "id": "live:759-764",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 759,
+      "endLine": 764,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L759-L764"
+    },
+    "live:5263-5320": {
+      "id": "live:5263-5320",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 5263,
+      "endLine": 5320,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L5263-L5320"
+    },
+    "rec:133-148": {
+      "id": "rec:133-148",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/realtime/recovering-session.ts",
+      "line": 133,
+      "endLine": 148,
+      "fileSha256": "4282181468eeb2ab845d58f1c3baf4dea96312a75f0fe592e74b47116aff461c",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/realtime/recovering-session.ts#L133-L148"
+    },
+    "live:1067-1079": {
+      "id": "live:1067-1079",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 1067,
+      "endLine": 1079,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L1067-L1079"
+    },
+    "rec:169-184": {
+      "id": "rec:169-184",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/realtime/recovering-session.ts",
+      "line": 169,
+      "endLine": 184,
+      "fileSha256": "4282181468eeb2ab845d58f1c3baf4dea96312a75f0fe592e74b47116aff461c",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/realtime/recovering-session.ts#L169-L184"
+    },
+    "rt:1462-1480": {
+      "id": "rt:1462-1480",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/realtime/realtime-session.ts",
+      "line": 1462,
+      "endLine": 1480,
+      "fileSha256": "abf87f993403ad9fc9b1bd182806ffa2174877ed72037fbc6e43a8392c6b798e",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/realtime/realtime-session.ts#L1462-L1480"
+    },
+    "rec:196-207": {
+      "id": "rec:196-207",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/realtime/recovering-session.ts",
+      "line": 196,
+      "endLine": 207,
+      "fileSha256": "4282181468eeb2ab845d58f1c3baf4dea96312a75f0fe592e74b47116aff461c",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/realtime/recovering-session.ts#L196-L207"
+    },
+    "rec:476-494": {
+      "id": "rec:476-494",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/realtime/recovering-session.ts",
+      "line": 476,
+      "endLine": 494,
+      "fileSha256": "4282181468eeb2ab845d58f1c3baf4dea96312a75f0fe592e74b47116aff461c",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/realtime/recovering-session.ts#L476-L494"
+    },
+    "live:2988-2998": {
+      "id": "live:2988-2998",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 2988,
+      "endLine": 2998,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L2988-L2998"
+    },
+    "dispatch:155-184": {
+      "id": "dispatch:155-184",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/tools/dispatcher.ts",
+      "line": 155,
+      "endLine": 184,
+      "fileSha256": "80b0b0e3cff6b9e8a9926f4ba20f7d6f27834c66c0536b026b2fbf8908bdce31",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/tools/dispatcher.ts#L155-L184"
+    },
+    "live:4388-4395": {
+      "id": "live:4388-4395",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 4388,
+      "endLine": 4395,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L4388-L4395"
+    },
+    "broker:141-148": {
+      "id": "broker:141-148",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/permissions/permission-broker.ts",
+      "line": 141,
+      "endLine": 148,
+      "fileSha256": "20d02680c7c1e007f2753384d1c4a9121175d2eebc08e7159edb1b26bddb3b44",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/permissions/permission-broker.ts#L141-L148"
+    },
+    "live:6033-6064": {
+      "id": "live:6033-6064",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 6033,
+      "endLine": 6064,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L6033-L6064"
+    },
+    "broker:314-337": {
+      "id": "broker:314-337",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/permissions/permission-broker.ts",
+      "line": 314,
+      "endLine": 337,
+      "fileSha256": "20d02680c7c1e007f2753384d1c4a9121175d2eebc08e7159edb1b26bddb3b44",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/permissions/permission-broker.ts#L314-L337"
+    },
+    "broker:303-337": {
+      "id": "broker:303-337",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/permissions/permission-broker.ts",
+      "line": 303,
+      "endLine": 337,
+      "fileSha256": "20d02680c7c1e007f2753384d1c4a9121175d2eebc08e7159edb1b26bddb3b44",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/permissions/permission-broker.ts#L303-L337"
+    },
+    "live:5277-5294": {
+      "id": "live:5277-5294",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 5277,
+      "endLine": 5294,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L5277-L5294"
+    },
+    "live:5281-5294": {
+      "id": "live:5281-5294",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 5281,
+      "endLine": 5294,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L5281-L5294"
+    },
+    "live:6086-6104": {
+      "id": "live:6086-6104",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 6086,
+      "endLine": 6104,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L6086-L6104"
+    },
+    "daemon:423-439": {
+      "id": "daemon:423-439",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/daemon.ts",
+      "line": 423,
+      "endLine": 439,
+      "fileSha256": "c171c384ec817629f90714d950625c3b5755c4c7f17beded677beb1a65730f92",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/daemon.ts#L423-L439"
+    },
+    "live:4553-4557": {
+      "id": "live:4553-4557",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 4553,
+      "endLine": 4557,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L4553-L4557"
+    },
+    "live:2880-2894": {
+      "id": "live:2880-2894",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 2880,
+      "endLine": 2894,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L2880-L2894"
+    },
+    "live:2311-2350": {
+      "id": "live:2311-2350",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 2311,
+      "endLine": 2350,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L2311-L2350"
+    },
+    "rec:462-469": {
+      "id": "rec:462-469",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/realtime/recovering-session.ts",
+      "line": 462,
+      "endLine": 469,
+      "fileSha256": "4282181468eeb2ab845d58f1c3baf4dea96312a75f0fe592e74b47116aff461c",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/realtime/recovering-session.ts#L462-L469"
+    },
+    "rec:582-595": {
+      "id": "rec:582-595",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/realtime/recovering-session.ts",
+      "line": 582,
+      "endLine": 595,
+      "fileSha256": "4282181468eeb2ab845d58f1c3baf4dea96312a75f0fe592e74b47116aff461c",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/realtime/recovering-session.ts#L582-L595"
+    },
+    "live:2886-2894": {
+      "id": "live:2886-2894",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 2886,
+      "endLine": 2894,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L2886-L2894"
+    },
+    "rec:564-581": {
+      "id": "rec:564-581",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/realtime/recovering-session.ts",
+      "line": 564,
+      "endLine": 581,
+      "fileSha256": "4282181468eeb2ab845d58f1c3baf4dea96312a75f0fe592e74b47116aff461c",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/realtime/recovering-session.ts#L564-L581"
+    },
+    "live:4465-4485": {
+      "id": "live:4465-4485",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 4465,
+      "endLine": 4485,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L4465-L4485"
+    },
+    "rec:530-552": {
+      "id": "rec:530-552",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/realtime/recovering-session.ts",
+      "line": 530,
+      "endLine": 552,
+      "fileSha256": "4282181468eeb2ab845d58f1c3baf4dea96312a75f0fe592e74b47116aff461c",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/realtime/recovering-session.ts#L530-L552"
+    },
+    "live:1281-1312": {
+      "id": "live:1281-1312",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 1281,
+      "endLine": 1312,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L1281-L1312"
+    },
+    "daemon:534-545": {
+      "id": "daemon:534-545",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/daemon.ts",
+      "line": 534,
+      "endLine": 545,
+      "fileSha256": "c171c384ec817629f90714d950625c3b5755c4c7f17beded677beb1a65730f92",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/daemon.ts#L534-L545"
+    },
+    "rt:2824-2833": {
+      "id": "rt:2824-2833",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/realtime/realtime-session.ts",
+      "line": 2824,
+      "endLine": 2833,
+      "fileSha256": "abf87f993403ad9fc9b1bd182806ffa2174877ed72037fbc6e43a8392c6b798e",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/realtime/realtime-session.ts#L2824-L2833"
+    },
+    "rt:1697-1706": {
+      "id": "rt:1697-1706",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/realtime/realtime-session.ts",
+      "line": 1697,
+      "endLine": 1706,
+      "fileSha256": "abf87f993403ad9fc9b1bd182806ffa2174877ed72037fbc6e43a8392c6b798e",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/realtime/realtime-session.ts#L1697-L1706"
+    },
+    "rec:146-157": {
+      "id": "rec:146-157",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/realtime/recovering-session.ts",
+      "line": 146,
+      "endLine": 157,
+      "fileSha256": "4282181468eeb2ab845d58f1c3baf4dea96312a75f0fe592e74b47116aff461c",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/realtime/recovering-session.ts#L146-L157"
+    },
+    "live:747-748": {
+      "id": "live:747-748",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/orchestrator/live-session.ts",
+      "line": 747,
+      "endLine": 748,
+      "fileSha256": "186fa9b753fdec340d18a8ad973c7ef1fc77297732fca94ec23404e14276a98a",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/orchestrator/live-session.ts#L747-L748"
+    },
+    "host:2009-2012": {
+      "id": "host:2009-2012",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/host/qwen-live-harness-host-coordinator.ts",
+      "line": 2009,
+      "endLine": 2012,
+      "fileSha256": "0d6bafa12c8c98bc3ec34348825b94275abe010a867f2c159ef7dba98f3fafd9",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/host/qwen-live-harness-host-coordinator.ts#L2009-L2012"
+    },
+    "host:2047-2054": {
+      "id": "host:2047-2054",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/host/qwen-live-harness-host-coordinator.ts",
+      "line": 2047,
+      "endLine": 2054,
+      "fileSha256": "0d6bafa12c8c98bc3ec34348825b94275abe010a867f2c159ef7dba98f3fafd9",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/host/qwen-live-harness-host-coordinator.ts#L2047-L2054"
+    },
+    "host:2873-2893": {
+      "id": "host:2873-2893",
+      "kind": "source",
+      "path": "packages/qwen-live-harness/src/host/qwen-live-harness-host-coordinator.ts",
+      "line": 2873,
+      "endLine": 2893,
+      "fileSha256": "0d6bafa12c8c98bc3ec34348825b94275abe010a867f2c159ef7dba98f3fafd9",
+      "commit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+      "url": "https://github.com/colus-liu/VoiceHarness/blob/37386f6e270f2ec129e00f26e1922591d47fd530/packages/qwen-live-harness/src/host/qwen-live-harness-host-coordinator.ts#L2873-L2893"
     }
   },
   "unverified": [
@@ -7459,7 +8706,7 @@
     {
       "id": "management",
       "label": "② 网页记忆管理",
-      "summary": "网页只开放启用/选库/建库；202 是接受，最终状态走 Host 回执。",
+      "summary": "操作完成后 Host 通过 getter 重新读取状态再发回执；202 只是接受，不直接使用操作回调返回值。",
       "nodes": [
         "web.memoryUI",
         "web.api",
@@ -7468,6 +8715,9 @@
         "web.onMemory",
         "mem.action",
         "live.sync",
+        "web.memoryState",
+        "web.getMemoryState",
+        "mem.state",
         "web.handleMessage",
         "web.renderMemory"
       ]
@@ -7522,6 +8772,35 @@
         "web.handleMessage",
         "web.bridgeReturn",
         "web.receiveOutput"
+      ]
+    },
+    {
+      "id": "permission-return",
+      "label": "授权结果如何返回",
+      "summary": "后端投递结果先返回 Broker，再由 onDecision 通知主流程；delivered 不表示任务成功。",
+      "nodes": [
+        "live.backendEvent",
+        "safe.request",
+        "live.permissionRespond",
+        "safe.respond",
+        "safe.deliver",
+        "back.vote",
+        "live.permissionDecision"
+      ]
+    },
+    {
+      "id": "transport-return",
+      "label": "语音事件与恢复代理",
+      "summary": "默认装配下语音事件经恢复代理到主流程；使用量和恢复请求有各自处理分支。",
+      "nodes": [
+        "voice.dialogue",
+        "voice.function",
+        "voice.usage",
+        "voice.recoveryRequest",
+        "eff.handlers",
+        "eff.recover",
+        "live.callbacks",
+        "eff.compact"
       ]
     }
   ]
