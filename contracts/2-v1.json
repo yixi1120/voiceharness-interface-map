@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "issue": 2,
+  "version": 1,
+  "state": "approved",
+  "title": "[模拟方案] 工具执行前授权审查",
+  "draft": {
+    "schema": 1,
+    "baseCommit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+    "nodes": [
+      {
+        "id": "back.agentPrompt",
+        "kind": "interface",
+        "parent": "back.agent",
+        "module": "backend",
+        "label": "prompt",
+        "summary": "根据用户最终转写更新会话授权表，并在每次工具执行前核对具体操作和参数。",
+        "signature": "prompt(params: ACP PromptRequest): Promise<ACP PromptResponse>（推断参数类型）",
+        "input": "ACP 后台会话编号 sessionId、交接的任务描述 prompt，以及 _meta[\"voiceharness/user-input\"] 中本轮用户的最终语音转写。后台从同一会话读取已有 grants。",
+        "output": "返回 stopReason。执行过程中通过 sessionUpdate 发送任务进度和工具结果，记录授权表快照与每次工具审查的结论和理由。审查返回 ask 时，发出一次性审批请求。",
+        "errors": "缺少最终转写或授权表生成失败时终止任务。审查拒绝、用户拒绝或审批超时时，当前操作不执行。任务可通过 AbortController 取消。写入被拒绝后，本轮不能改名重试。"
+      },
+      {
+        "id": "draft.b1d61b53-3f92-483f-9fc6-4c1ab86408df",
+        "kind": "interface",
+        "parent": "back.agent",
+        "module": "backend",
+        "label": "updateAuthorization",
+        "summary": "根据本轮用户最终转写，新增、撤回或收窄同一后台会话的用户授权。",
+        "signature": "updateAuthorization(ask: AskModel, userInput: string, signal: AbortSignal, previousGrants?: readonly string[]): Promise<WorkspaceAuthorization>",
+        "input": "ask 用于调用授权模型。`userInput` 是本轮用户最终转写。`previousGrants` 是同一后台会话已有的授权，首次为空。`signal` 用于中止请求。",
+        "output": "返回 { task, grants, userInput }。`task` 是本轮任务摘要，`grants` 是合并新增和撤回后的完整授权表，`userInput` 保留用户最终转写。",
+        "errors": "模型返回格式无效或撤回项无法匹配旧条目时，停止本轮任务。任务取消时中止请求。"
+      },
+      {
+        "id": "draft.277f9798-32d7-43a7-b055-ab7248909c2e",
+        "kind": "interface",
+        "parent": "back.agent",
+        "module": "backend",
+        "label": "reviewAction",
+        "summary": "在工具执行前，核对本次具体操作和参数是否符合用户授权。",
+        "signature": "reviewAction(ask: AskModel, authorization: WorkspaceAuthorization, action: WorkspaceAction, signal: AbortSignal): Promise<{ decision: 'allow' | 'deny' | 'ask'; reason: string }>",
+        "input": "ask 用于调用审查模型。`authorization` 包含任务摘要、当前授权表和用户原话。`action` 包含实际工具名 tool、操作类型 operation 和参数 arguments。`signal` 用于中止请求。",
+        "output": "返回 { decision, reason }。`allow` 继续执行，`deny` 拒绝本次调用，`ask` 由 prompt 发起一次性审批。`reason` 记录判断理由。",
+        "errors": "审查结果格式无效、审查请求失败或任务取消时，当前工具调用不执行。"
+      }
+    ],
+    "edges": [
+      {
+        "id": "draft.87f3e80f-54f2-44ba-82cf-66f66b0bf2ed",
+        "source": "back.agentPrompt",
+        "target": "draft.b1d61b53-3f92-483f-9fc6-4c1ab86408df",
+        "type": "Calls",
+        "label": "prompt 收到后台任务后，将本轮用户最终转写和同一会话已有的 grants 交给 updateAuthorization，保存返回的授权表，供后续工具审查使用。"
+      },
+      {
+        "id": "draft.544e65b4-4b03-459e-8e3f-8753ac5ed360",
+        "source": "back.agentPrompt",
+        "target": "draft.277f9798-32d7-43a7-b055-ab7248909c2e",
+        "type": "Calls",
+        "label": "每次实际工具执行前，`prompt` 把当前授权表和本次调用的工具名、操作类型、实际参数交给 reviewAction，根据返回的 allow、`deny` 或 ask 继续处理。"
+      },
+      {
+        "id": "e083",
+        "source": "back.send",
+        "target": "back.agentPrompt",
+        "type": "Emits / Handles",
+        "label": "通过 ACP prompt 请求提交后台任务。任务描述放在 prompt 字段，本轮用户最终转写放在 _meta[\"voiceharness/user-input\"]，供 Workspace 更新会话授权表。"
+      },
+      {
+        "id": "e069",
+        "source": "back.agentPrompt",
+        "target": "back.permission",
+        "type": "Emits / Handles",
+        "label": "reviewAction 返回 ask 时，Workspace 通过 ACP 发出一次性审批请求，携带本次工具调用、审批选项、参数版本、参数摘要和有效期，由 onRequestPermission 接收。"
+      }
+    ],
+    "removedNodes": [],
+    "removedEdges": []
+  }
+}
