@@ -1,0 +1,147 @@
+{
+  "schema": 1,
+  "issue": 1,
+  "version": 1,
+  "state": "approved",
+  "title": "[模拟方案] 语音交互部分——识别语音信息并回传下游",
+  "draft": {
+    "schema": 1,
+    "baseCommit": "37386f6e270f2ec129e00f26e1922591d47fd530",
+    "nodes": [
+      {
+        "id": "draft.voice.speech-bounds",
+        "kind": "interface",
+        "parent": "voice.transport",
+        "module": "voice",
+        "label": "发声起止回调",
+        "summary": "补录现有运行时信号，供语音片段对齐。",
+        "signature": "onSpeechStarted(event) / onSpeechStopped(event)",
+        "input": "实时语义 VAD 事件",
+        "output": "发声开始或停止、可取得的 itemId 与音频时间",
+        "errors": "边界缺失或身份无法关联时标记未对齐。"
+      },
+      {
+        "id": "draft.voice.transcript-partial",
+        "kind": "interface",
+        "parent": "voice.transport",
+        "module": "voice",
+        "label": "流式转写回调",
+        "summary": "补录现有回调，保留稳定前缀与可变后缀供首版消费。",
+        "signature": "onInputTranscriptDelta(event)",
+        "input": "Qwen 会话中的输入转写事件",
+        "output": "itemId、流式文本、可选 language 和 emotion 候选",
+        "errors": "按同一输入项更新预览。最终转写到达后忽略迟到的流式文本。"
+      },
+      {
+        "id": "draft.voice.transcript-final",
+        "kind": "interface",
+        "parent": "voice.transport",
+        "module": "voice",
+        "label": "最终转写回调",
+        "summary": "补录现有回调，为同一个输入项提供最终原话。",
+        "signature": "onInputTranscriptDone(event)",
+        "input": "Qwen 会话中的最终转写事件",
+        "output": "itemId、最终转写文本",
+        "errors": "保留否定、数字和改口前后的原话。不会从最终事件假定能取得 emotion。"
+      },
+      {
+        "id": "draft.voice.features",
+        "kind": "interface",
+        "parent": "live.session",
+        "module": "live",
+        "label": "语速与停顿特征计算",
+        "summary": "从有界 PCM16 窗口和转写估算语速，对齐发声区间与停顿。",
+        "signature": "deriveSpeechFeatures(input): SpeechFeatures",
+        "input": "本次通话 16 kHz PCM16、可对齐的发声边界、最终文本",
+        "output": "有效发声时长、停顿次数及持续时间、语速与单位、来源及缺失状态",
+        "errors": "对不齐、片段过短或连接切换时标记缺失或丢弃过期计算。"
+      },
+      {
+        "id": "draft.voice.input-info",
+        "kind": "interface",
+        "parent": "live.session",
+        "module": "live",
+        "label": "语音输入信息回传",
+        "summary": "按 callEpoch、连接代次和 itemId 关联转写、发声边界与可选特征。后续轮次和插话模块可复用这些数据。",
+        "signature": "onSpeechInputInfo(event: SpeechInputInfo): void",
+        "input": "发声与转写事件、语速和停顿特征",
+        "output": "partial / final / features；转写、可取得的发声边界、语言与情绪候选以及计算出的特征",
+        "errors": "特征异步补发，未知字段标记缺失；旧连接结果不能写入当前轮，迟到数据不能再触发回复或授权。"
+      },
+      {
+        "id": "draft.voice.context",
+        "kind": "interface",
+        "parent": "live.session",
+        "module": "live",
+        "label": "下游语音上下文",
+        "summary": "向需要语音信息的对话或文本处理层提供本轮原话及可选元数据。",
+        "signature": "speechContextFor(input): SpeechInputContext",
+        "input": "本轮最终转写、可用的语速、停顿、语言与情绪候选",
+        "output": "按输入身份组织的文本及可选语音元数据",
+        "errors": "特征未就绪时可先消费最终文本；已启动的任务可在后续读取补充信息。"
+      }
+    ],
+    "edges": [
+      {
+        "id": "draft.voice.edge.bounds",
+        "source": "draft.voice.speech-bounds",
+        "target": "live.callbacks",
+        "type": "Emits / Handles",
+        "label": "发声起止回调携带可取得的输入标识与时间边界"
+      },
+      {
+        "id": "draft.voice.edge.partial",
+        "source": "draft.voice.transcript-partial",
+        "target": "live.callbacks",
+        "type": "Emits / Handles",
+        "label": "同一 itemId 下更新流式文本、语言与情绪候选"
+      },
+      {
+        "id": "draft.voice.edge.final",
+        "source": "draft.voice.transcript-final",
+        "target": "live.callbacks",
+        "type": "Emits / Handles",
+        "label": "同一 itemId 下返回最终原话"
+      },
+      {
+        "id": "draft.voice.edge.pcm",
+        "source": "live.audio",
+        "target": "draft.voice.features",
+        "type": "Data Flow",
+        "label": "在转发点旁路读取当前通话 PCM16，保留短时内存窗口"
+      },
+      {
+        "id": "draft.voice.edge.alignment",
+        "source": "live.callbacks",
+        "target": "draft.voice.features",
+        "type": "Data Flow",
+        "label": "提供可关联的发声区间与最终文本"
+      },
+      {
+        "id": "draft.voice.edge.transcript",
+        "source": "live.callbacks",
+        "target": "draft.voice.input-info",
+        "type": "Data Flow",
+        "label": "关联输入身份、发声边界、流式转写与最终文本"
+      },
+      {
+        "id": "draft.voice.edge.features",
+        "source": "draft.voice.features",
+        "target": "draft.voice.input-info",
+        "type": "Data Flow",
+        "label": "异步补发语速、有效发声时长和停顿统计"
+      },
+      {
+        "id": "draft.voice.edge.context",
+        "source": "draft.voice.input-info",
+        "target": "draft.voice.context",
+        "type": "Data Flow",
+        "label": "交付最终文本和已到达的语音元数据"
+      }
+    ],
+    "removedNodes": [
+      "prop.turn"
+    ],
+    "removedEdges": []
+  }
+}
