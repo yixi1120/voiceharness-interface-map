@@ -195,6 +195,7 @@
   function cacheResult(item, reason = '') {
     return {
       data: item.data,
+      stale: Boolean(reason),
       notice: `${reason ? reason + ' ' : ''}显示本机缓存（${new Date(item.at).toLocaleString()}），可能不是最新版本。可点“刷新方案”检查更新。`,
     };
   }
@@ -455,13 +456,37 @@
       ? loaded
           .map(
             (i) =>
-              `<article class="shared-card"><strong>${esc(i.title)}</strong><p>#${i.number} · ${esc(i.user?.login || '未知账号')} · ${i.state === 'closed' ? '已关闭（不代表已采纳）' : '待讨论'} · ${esc(i.updated_at?.slice(0, 10))}</p><button data-proposal="${i.number}">查看方案</button> <a href="${WEB}/issues/${i.number}" target="_blank" rel="noreferrer">GitHub 记录 ↗</a></article>`,
+              `<article class="shared-card"><strong>${esc(i.title)}</strong><p>#${i.number} · ${esc(i.user?.login || '未知账号')} · ${i.state === 'closed' ? '已关闭（不代表已采纳）' : '共享草稿'} · ${esc(i.updated_at?.slice(0, 10))}</p><button data-proposal="${i.number}">查看方案</button> <a href="${WEB}/issues/${i.number}" target="_blank" rel="noreferrer">GitHub 记录 ↗</a></article>`,
           )
           .join('')
       : '<p>已加载的记录中还没有共享方案。模拟改图后，点“提交共享方案”开始。</p>';
     container
       .querySelectorAll('[data-proposal]')
       .forEach((b) => (b.onclick = () => open(Number(b.dataset.proposal))));
+    if (window.teamContracts && loaded.length) {
+      const listTicket = sequence;
+      window.teamContracts
+        .catalog()
+        .then(({ latest }) => {
+          if (sequence !== listTicket || !panel.open) return;
+          for (const opener of container.querySelectorAll('[data-proposal]')) {
+            const number = Number(opener.dataset.proposal),
+              version = latest.get(number);
+            if (!version || opener.parentElement.querySelector('[data-team]'))
+              continue;
+            const approved = document.createElement('button');
+            approved.dataset.team = String(number);
+            approved.className = 'rv-badge rv-approved';
+            approved.textContent = '紫色团队约定 v' + version;
+            approved.onclick = () => {
+              panel.close();
+              window.teamContracts.openIssue(number);
+            };
+            opener.after(approved);
+          }
+        })
+        .catch(() => {});
+    }
     $('#sharedMore').hidden = !hasMore;
   }
   async function refresh(append = false, force = false) {
@@ -554,15 +579,40 @@
     }
     show(
       manual ? '手动粘贴的方案' : '共享方案 #' + number,
-      `<h3>${esc(issue.title)}</h3><p>${manual ? '手动粘贴，账号未核验' : '提交账号：' + esc(issue.user?.login)} · ${issue.state === 'closed' ? '已关闭（不表示已实现）' : '待讨论'}<br>基线：<code>${esc(d.baseCommit)}</code></p><p>${esc(summary(d))}</p>${changes(d)}<p>${incompatible ? '当前图无法套用此方案：' + esc(incompatible) : '可以在图上预览。所有改动仍标为 Proposed，正式图和你原有的草稿不会改变。'}</p><div class="lab-row"><button id="compareShared" ${incompatible ? 'disabled' : ''}>修改前后对比</button><button id="previewShared" ${incompatible ? 'disabled' : ''}>在图上预览</button><button id="adoptShared" ${incompatible ? 'disabled' : ''}>复制到我的草稿继续改</button><button id="downloadShared">下载方案</button><button id="sharedRefresh">刷新方案</button><button id="backShared">返回列表</button></div><p><a href="${WEB}/issues${number ? '/' + number : ''}" target="_blank" rel="noreferrer">查看说明 / 讨论 / 编辑 / 关闭记录 ↗</a></p><button id="copyProposalLink">复制本网站方案链接</button>`,
+      `<h3>${esc(issue.title)}</h3><p>${manual ? '手动粘贴，账号未核验' : '提交账号：' + esc(issue.user?.login)} · ${issue.state === 'closed' ? '已关闭（不表示已实现）' : '共享草稿'}<br>基线：<code>${esc(d.baseCommit)}</code></p><p>${esc(summary(d))}</p>${changes(d)}<p>${incompatible ? '当前图无法套用此方案：' + esc(incompatible) : '可以在图上预览。所有改动仍标为 Proposed，正式图和你原有的草稿不会改变。'}</p><div class="lab-row"><button id="compareShared" ${incompatible ? 'disabled' : ''}>修改前后对比</button><button id="previewShared" ${incompatible ? 'disabled' : ''}>在图上预览</button><button id="adoptShared" ${incompatible ? 'disabled' : ''}>复制到我的草稿继续改</button><button id="downloadShared">下载方案</button><button id="sharedRefresh">刷新方案</button><button id="backShared">返回列表</button></div><p><a href="${WEB}/issues${number ? '/' + number : ''}" target="_blank" rel="noreferrer">查看说明 / 讨论 / 编辑 / 关闭记录 ↗</a></p><button id="copyProposalLink">复制本网站方案链接</button>`,
     );
+    if (!manual && window.teamContracts) {
+      const button = document.createElement('button');
+      button.textContent = '查看团队约定';
+      $('#compareShared').before(button);
+      button.onclick = () => {
+        panel.close();
+        window.teamContracts.openIssue(number);
+      };
+      window.teamContracts
+        .history(number)
+        .then((versions) => {
+          const latest = versions.at(-1);
+          if (latest && button.isConnected) {
+            button.textContent = '查看紫色团队约定 v' + latest.version;
+            button.className = 'rv-badge rv-approved';
+          }
+        })
+        .catch(() => {});
+    }
     if (window.interfaceReview && !incompatible) {
       const button = document.createElement('button');
       button.textContent = '加入本地审核';
       $('#compareShared').before(button);
       button.onclick = () => {
         panel.close();
-        window.interfaceReview.start(d, manual ? '' : issue.user?.login, label);
+        window.interfaceReview.start(
+          d,
+          manual ? '' : issue.user?.login,
+          label,
+          null,
+          manual ? null : number,
+        );
       };
     }
     $('#compareShared').onclick = () => {
@@ -632,5 +682,14 @@
   }
   window.addEventListener('hashchange', deepLink);
   deepLink();
-  window.sharedScenarios = { clean, bodyFor, parseIssue };
+  window.sharedScenarios = {
+    clean,
+    bodyFor,
+    parseIssue,
+    async readIssue(number) {
+      const { data, stale } = await get('/issues/' + number, true);
+      if (stale) throw Error('请在可连接 GitHub 时核对共享方案。');
+      return { title: data.title, draft: parseIssue(data) };
+    },
+  };
 })();

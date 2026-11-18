@@ -8,7 +8,7 @@
   const revisionKey = key + ':editing';
   const labels = {
     pending: '黄色 · 待审核',
-    approved: '紫色 · 已约定',
+    approved: '本机已审核',
     verified: '绿色 · 已复测',
   };
   const changeNames = { added: '新增', modified: '修改', removed: '删除' };
@@ -113,10 +113,10 @@
     }
     screen(
       '本地方案审核',
-      '<p>审核记录保存在当前浏览器。先登记模块负责人，再提交模拟草稿。黄、紫、绿分别表示待讨论、已约定和已复测。</p>' +
+      '<p>审核记录保存在当前浏览器。全组共用的紫色版本在「团队约定」。本机审完后，点「发布或查看紫色团队约定」共享。</p>' +
         '<div class="lab-row"><button id="rvNew">' +
         (context ? '提交当前修订草稿' : '提交当前草稿') +
-        '</button><button id="rvOwners">模块负责人</button>' +
+        '</button><button id="rvOwners">模块负责人</button><button id="rvTeamList">查看团队约定</button>' +
         (context ? '<button id="rvDetach">退出修订关联</button>' : '') +
         '</div>' +
         (state.plans.length
@@ -165,6 +165,7 @@
     );
     $('rvNew').onclick = () => start(wb.getDraft(), '', '', context);
     $('rvOwners').onclick = () => owners(directory);
+    $('rvTeamList').onclick = () => window.teamContracts.directory();
     if (context)
       $('rvDetach').onclick = () => {
         sessionStorage.removeItem(revisionKey);
@@ -233,7 +234,7 @@
       );
     };
   }
-  function start(draft, author = '', title = '', context = null) {
+  function start(draft, author = '', title = '', context = null, issue = null) {
     const state = read();
     try {
       const plan = context && state.plans.find((p) => p.id === context.id);
@@ -291,7 +292,7 @@
           (s) => {
             let target = s.plans.find((p) => p.id === id);
             if (!target) {
-              target = { id, title: name, versions: [] };
+              target = { id, title: name, versions: [], issue };
               s.plans.push(target);
             }
             if (context?.replaces) target.versions.at(-1).supersededBy = n;
@@ -406,7 +407,10 @@
         esc(notify) +
         '</textarea><button id="rvCopy">复制通知</button></details>' +
         (v.state === 'pending' && !v.supersededBy
-          ? '<form id="rvApprove"><label>审核人<input id="rvReviewer" required maxlength="80"></label><button>审核通过，设为紫色</button></form>'
+          ? '<form id="rvApprove"><label>审核人<input id="rvReviewer" required maxlength="80"></label><button>本机审核通过</button></form>'
+          : '') +
+        (active
+          ? '<button id="rvTeamPublish">发布或查看紫色团队约定</button><p>本机审核已保存；发布到团队约定后，其他人可在网站上看到。</p>'
           : '') +
         (active && v.state === 'approved'
           ? '<form id="rvVerify"><h3>实现与复测核对</h3><label>核对人<input id="rvVerifier" required maxlength="80"></label><label>实现位置（提交、PR 或源码定位）<input id="rvSource" required maxlength="300"></label><label>通过的复测用例及结果<input id="rvTest" required maxlength="500"></label><button>确认核对通过，标为绿色</button></form>'
@@ -425,6 +429,8 @@
           ? '<button id="rvRevise">基于此版继续修订</button>'
           : ''),
     );
+    if ($('rvTeamPublish'))
+      $('rvTeamPublish').onclick = () => window.teamContracts.publish(plan, v);
     $('rvList').onclick = directory;
     $('rvEditOwners').onclick = () =>
       owners(() => detail(id, n), impact.modules);
@@ -534,5 +540,32 @@
   button.textContent = '方案审核';
   $('labShared').after(button);
   button.onclick = directory;
-  window.interfaceReview = { start };
+  window.interfaceReview = {
+    start,
+    importContract(record) {
+      const state = read();
+      const id = crypto.randomUUID();
+      const plan = {
+        id,
+        issue: record.issue,
+        title: '#' + record.issue + ' ' + record.title,
+        versions: [
+          {
+            n: 1,
+            parent: null,
+            author: '团队约定 v' + record.version,
+            created: new Date().toISOString(),
+            state: 'approved',
+            draft: record.draft,
+            supplement: '',
+          },
+        ],
+      };
+      save(
+        state,
+        (s) => s.plans.push(plan),
+        () => detail(id, 1),
+      );
+    },
+  };
 })();
