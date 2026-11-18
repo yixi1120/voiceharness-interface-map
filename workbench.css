@@ -397,3 +397,25 @@ button:disabled {
 .compare-table-wrap.diff-review tr.field-changed td {
   background: #eaf0f6;
 }
+
+.rv-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-weight: 600;
+}
+.rv-pending {
+  color: #785305;
+  background: #fff1bd;
+}
+.rv-approved {
+  color: #62338f;
+  background: #efe5fb;
+}
+.rv-verified {
+  color: #205c40;
+  background: #def1e5;
+}
+#rvError {
+  color: #773d27;
+}

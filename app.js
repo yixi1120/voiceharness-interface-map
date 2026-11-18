@@ -25,6 +25,9 @@
     'Proposed Integration': '#ad7b24',
   };
   const DIFF = {
+    pending: { color: '#906308', fill: '#fff1bd', label: '待审核' },
+    approved: { color: '#7143a1', fill: '#efe5fb', label: '已约定' },
+    verified: { color: '#1e6b48', fill: '#def1e5', label: '已复测' },
     added: { color: '#24704b', fill: '#e2f4e8', label: '＋ 新增' },
     removed: { color: '#bf3e4c', fill: '#fde8eb', label: '－ 已删除' },
     modified: { color: '#a57621', fill: '#fff1d2', label: '～ 修改' },
@@ -805,6 +808,16 @@
       $('viewTitle').textContent = '增删同图 · 保留相关模块完整接口';
       $('viewNote').textContent =
         '普通样式＝未修改；绿色＋新增、红色虚线－删除、土黄色～修改。相关模块已展开，其余模块可展开查看；点接口看上下游。';
+    }
+    if (
+      D.meta.reviewLabel &&
+      state.diffOverview &&
+      !state.selected &&
+      !state.tour
+    ) {
+      $('viewTitle').textContent = D.meta.reviewLabel;
+      $('viewNote').textContent =
+        '颜色表示本次审核进度。红色删除项保留作对照；接口详情中的源码证据单独核对。';
     }
     $('clearSelection').hidden = !state.selected && !state.tour;
     $('stats').textContent =

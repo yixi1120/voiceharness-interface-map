@@ -556,6 +556,15 @@
       manual ? '手动粘贴的方案' : '共享方案 #' + number,
       `<h3>${esc(issue.title)}</h3><p>${manual ? '手动粘贴，账号未核验' : '提交账号：' + esc(issue.user?.login)} · ${issue.state === 'closed' ? '已关闭（不表示已实现）' : '待讨论'}<br>基线：<code>${esc(d.baseCommit)}</code></p><p>${esc(summary(d))}</p>${changes(d)}<p>${incompatible ? '当前图无法套用此方案：' + esc(incompatible) : '可以在图上预览。所有改动仍标为 Proposed，正式图和你原有的草稿不会改变。'}</p><div class="lab-row"><button id="compareShared" ${incompatible ? 'disabled' : ''}>修改前后对比</button><button id="previewShared" ${incompatible ? 'disabled' : ''}>在图上预览</button><button id="adoptShared" ${incompatible ? 'disabled' : ''}>复制到我的草稿继续改</button><button id="downloadShared">下载方案</button><button id="sharedRefresh">刷新方案</button><button id="backShared">返回列表</button></div><p><a href="${WEB}/issues${number ? '/' + number : ''}" target="_blank" rel="noreferrer">查看说明 / 讨论 / 编辑 / 关闭记录 ↗</a></p><button id="copyProposalLink">复制本网站方案链接</button>`,
     );
+    if (window.interfaceReview && !incompatible) {
+      const button = document.createElement('button');
+      button.textContent = '加入本地审核';
+      $('#compareShared').before(button);
+      button.onclick = () => {
+        panel.close();
+        window.interfaceReview.start(d, manual ? '' : issue.user?.login, label);
+      };
+    }
     $('#compareShared').onclick = () => {
       panel.close();
       window.ScenarioCompare.open(d, label);

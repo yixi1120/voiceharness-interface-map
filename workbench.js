@@ -531,6 +531,13 @@
   $('labShared').onclick = () =>
     window.dispatchEvent(new Event('map-share-list'));
   window.mapWorkbench = {
+    dialog,
+    escapeText: esc,
+    previewReview(g, d, title) {
+      sharedContext = { draft: structuredClone(d), title };
+      mode = 'shared';
+      preview(g, title);
+    },
     scenario,
     getDraft: () => structuredClone(draft),
     getMode: () => mode,
