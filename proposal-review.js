@@ -105,8 +105,12 @@
     );
   }
   function directory() {
-    const state = read(),
-      context = editing();
+    const state = read();
+    let context = editing();
+    if (context && !state.plans.some((p) => p.id === context.id)) {
+      sessionStorage.removeItem(revisionKey);
+      context = null;
+    }
     screen(
       '本地方案审核',
       '<p>审核记录保存在当前浏览器。先登记模块负责人，再提交模拟草稿。黄、紫、绿分别表示待讨论、已约定和已复测。</p>' +
@@ -124,7 +128,11 @@
                 return (
                   '<article class="shared-card"><strong>' +
                   esc(p.title) +
-                  '</strong><p>' +
+                  '</strong><p>创建于 ' +
+                  esc(new Date(p.versions[0].created).toLocaleString()) +
+                  ' · ' +
+                  esc(p.versions[0].author) +
+                  '</p><p>' +
                   (contract
                     ? '当前约定 v' + contract.n + ' ' + badge(contract)
                     : '尚待首次审核') +
@@ -147,7 +155,9 @@
                         '</button>',
                     )
                     .join(' ') +
-                  '</article>'
+                  ' <button type="button" data-delete-plan="' +
+                  esc(p.id) +
+                  '">删除</button></article>'
                 );
               })
               .join('')
@@ -162,6 +172,29 @@
       };
     for (const b of $('labDialog').querySelectorAll('[data-plan]'))
       b.onclick = () => detail(b.dataset.plan, Number(b.dataset.version));
+    for (const button of $('labDialog').querySelectorAll(
+      '[data-delete-plan]',
+    )) {
+      button.onclick = () => {
+        const plan = state.plans.find(
+          (p) => p.id === button.dataset.deletePlan,
+        );
+        const created = new Date(plan.versions[0].created).toLocaleString();
+        if (
+          !confirm(
+            `删除这条本地审核记录及其全部 ${plan.versions.length} 个版本？\n${plan.title}\n创建于 ${created} · ${plan.versions[0].author}`,
+          )
+        )
+          return;
+        save(
+          state,
+          (next) => {
+            next.plans = next.plans.filter((p) => p.id !== plan.id);
+          },
+          directory,
+        );
+      };
+    }
   }
   function owners(back, extra = []) {
     const state = read();
