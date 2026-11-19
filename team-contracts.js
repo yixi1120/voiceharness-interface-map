@@ -311,7 +311,9 @@
           issue +
           ' 的紫色 v' +
           payload.version +
-          '。请核对下面的接口说明，再用有地图仓库写权限的 GitHub 账号提交。</p><textarea id="teamJson" readonly rows="6"></textarea><div class="lab-row"><button id="teamCopy">复制约定文件</button><a id="teamGit" target="_blank" rel="noreferrer">到 GitHub 新建此版本 ↗</a></div><p>把复制的内容粘到文件正文，点 Commit changes。合入 main 并完成 Pages 部署后，所有人都能看到。若文件已存在，请重新读取团队约定。</p>';
+          '。请核对下面的接口说明，再用有地图仓库写权限的 GitHub 账号提交。</p><textarea id="teamJson" readonly rows="6"></textarea><div class="lab-row"><button id="teamCopy" class="rv-approved">发布紫色约定 · 复制 JSON 文件内容</button><a id="teamGit" target="_blank" rel="noreferrer">到 GitHub 新建此版本 ↗</a></div><p>把 JSON 粘贴到新建的 <code>' +
+          file(issue, payload.version) +
+          '</code> 文件，点 Commit changes。合入 main 并完成 Pages 部署后，所有人都能看到。若文件已存在，请重新读取团队约定。</p>';
         $('teamJson').value = json;
         $('teamGit').href =
           git +
@@ -320,10 +322,12 @@
         $('teamCopy').onclick = async () => {
           try {
             await navigator.clipboard.writeText(json);
-            $('teamStatus').textContent = '已复制。';
+            $('teamStatus').textContent =
+              '已复制紫色约定 JSON，请粘贴到 GitHub 新建文件的编辑框。';
           } catch {
             $('teamJson').select();
-            $('teamStatus').textContent = '请按 ⌘C 或 Ctrl+C 复制。';
+            $('teamStatus').textContent =
+              '请按 ⌘C 或 Ctrl+C 复制紫色约定 JSON，粘贴到 GitHub 新建文件的编辑框。';
           }
         };
         $('teamStatus').textContent = '';

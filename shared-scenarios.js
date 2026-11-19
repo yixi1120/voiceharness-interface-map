@@ -430,17 +430,18 @@
             '/issues/new?' +
             new URLSearchParams({ title: '[模拟方案] ' + title });
         $('#shareHandoff').innerHTML =
-          `<p>${long ? '方案较大：先复制下方提交内容，打开 GitHub 后粘贴到正文，再提交。' : '打开 GitHub 后，标题和内容已填好；检查后点击 Create / Submit new issue 完成提交。'}</p><details ${long ? 'open' : ''}><summary>检查将公开的提交内容</summary><textarea id="shareBody" readonly rows="7"></textarea></details><button id="copyShareBody">复制提交内容</button> <a id="openGitHubSubmit" class="share-link" href="${esc(link)}" target="_blank" rel="noreferrer">${long ? '打开 GitHub 并粘贴' : '前往 GitHub 确认提交'} ↗</a><p>打开提交页面还不算同步成功。GitHub 创建记录后，回这里点“查看共享方案”；你和卢同学都能看到。</p><button id="shareAfterSubmit">查看共享方案</button>`;
+          `<p>${long ? '方案较大，请先复制黄色草稿正文，再粘贴到 GitHub 新 Issue 的描述框。' : '打开 GitHub 后，标题和内容已填好；检查后点击 Create / Submit new issue 完成提交。'}</p><details ${long ? 'open' : ''}><summary>查看将提交到 GitHub Issue 的草稿正文</summary><textarea id="shareBody" readonly rows="7"></textarea></details><button id="copyShareBody" class="rv-pending">提交黄色草稿 · 复制 Issue 正文</button> <a id="openGitHubSubmit" class="share-link" href="${esc(link)}" target="_blank" rel="noreferrer">${long ? '打开 GitHub 新 Issue 并粘贴' : '前往 GitHub 确认提交'} ↗</a><p>打开提交页面还不算同步成功。GitHub 创建记录后，回这里点“查看共享方案”；你和卢同学都能看到。</p><button id="shareAfterSubmit">查看共享方案</button>`;
         $('#shareBody').value = body;
         $('#copyShareBody').onclick = async () => {
           try {
             await navigator.clipboard.writeText(body);
-            $('#sharedStatus').textContent = '已复制，粘贴到 GitHub 正文即可。';
+            $('#sharedStatus').textContent =
+              '已复制黄色草稿正文，请粘贴到 GitHub Issue 的描述框。';
           } catch {
             $('#shareBody').focus();
             $('#shareBody').select();
             $('#sharedStatus').textContent =
-              '请按 Ctrl+C / ⌘C 复制已选中的内容。';
+              '请按 Ctrl+C / ⌘C 复制黄色草稿正文，粘贴到 GitHub Issue 的描述框。';
           }
         };
         $('#shareAfterSubmit').onclick = list;
