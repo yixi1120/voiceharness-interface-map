@@ -552,6 +552,20 @@
       $('proposed').checked = true;
       $('proposed').dispatchEvent(new Event('change'));
     },
+    previewSharedChanges(d, title, state) {
+      const after = scenario(d);
+      const report = window.ScenarioCompare.calculate(base, after, d);
+      const graph = window.ScenarioCompare.overlayGraph(base, after, report);
+      for (const row of report.rows) {
+        const marks = graph.meta.diffOverlay[row.group];
+        if (row.type === 'review') delete marks[row.id];
+        else if (row.type !== 'removed') marks[row.id] = state;
+      }
+      graph.meta.reviewLabel = title;
+      graph.meta.modeLabel = title;
+      $('compareViewBar').hidden = true;
+      window.mapWorkbench.previewReview(graph, d, title);
+    },
     previewShared(d, title) {
       sharedContext = { draft: structuredClone(d), title };
       const g = scenario(d);

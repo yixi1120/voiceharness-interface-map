@@ -450,6 +450,28 @@
       }
     };
   }
+  function sharedReviewStatus(issue, draft, versions) {
+    const match = versions.findLast(
+      (v) => JSON.stringify(v.draft) === JSON.stringify(draft),
+    );
+    if (match) {
+      const historical = match.version !== versions.at(-1).version;
+      return {
+        state: 'approved',
+        label:
+          '紫色 · ' +
+          (historical ? '历史约定' : '已约定') +
+          ' v' +
+          match.version,
+      };
+    }
+    if (issue.state === 'closed') return { label: '已关闭' };
+    return { state: 'pending', label: '黄色 · 待审核' };
+  }
+  function showReviewStatus(element, status) {
+    element.className = status.state ? 'rv-badge rv-' + status.state : '';
+    element.textContent = status.label;
+  }
   function renderList() {
     const container = $('#sharedList');
     if (!container) return;
@@ -457,7 +479,7 @@
       ? loaded
           .map(
             (i) =>
-              `<article class="shared-card"><strong>${esc(i.title)}</strong><p>#${i.number} · ${esc(i.user?.login || '未知账号')} · ${i.state === 'closed' ? '已关闭（不代表已采纳）' : '共享草稿'} · ${esc(i.updated_at?.slice(0, 10))}</p><button data-proposal="${i.number}">查看方案</button> <a href="${WEB}/issues/${i.number}" target="_blank" rel="noreferrer">GitHub 记录 ↗</a></article>`,
+              `<article class="shared-card"><strong>${esc(i.title)}</strong><p>#${i.number} · ${esc(i.user?.login || '未知账号')} · <span data-review-status>读取审核状态…</span> · ${esc(i.updated_at?.slice(0, 10))}</p><button data-proposal="${i.number}">查看方案</button> <a href="${WEB}/issues/${i.number}" target="_blank" rel="noreferrer">GitHub 记录 ↗</a></article>`,
           )
           .join('')
       : '<p>已加载的记录中还没有共享方案。模拟改图后，点“提交共享方案”开始。</p>';
@@ -468,25 +490,44 @@
       const listTicket = sequence;
       window.teamContracts
         .catalog()
-        .then(({ latest }) => {
+        .catch(() => ({ latest: new Map(), archived: true }))
+        .then(({ latest, archived }) => {
           if (sequence !== listTicket || !panel.open) return;
-          for (const opener of container.querySelectorAll('[data-proposal]')) {
-            const number = Number(opener.dataset.proposal),
-              version = latest.get(number);
-            if (!version || opener.parentElement.querySelector('[data-team]'))
-              continue;
-            const approved = document.createElement('button');
-            approved.dataset.team = String(number);
-            approved.className = 'rv-badge rv-approved';
-            approved.textContent = '紫色团队约定 v' + version;
-            approved.onclick = () => {
-              panel.close();
-              window.teamContracts.openIssue(number);
+          for (const issue of loaded) {
+            const opener = container.querySelector(
+              '[data-proposal="' + issue.number + '"]',
+            );
+            const badge = opener.parentElement.querySelector(
+              '[data-review-status]',
+            );
+            const apply = (versions) => {
+              if (!opener.isConnected || sequence !== listTicket) return;
+              const status = sharedReviewStatus(
+                issue,
+                parseIssue(issue),
+                versions,
+              );
+              showReviewStatus(badge, status);
+              if (!versions.length) return;
+              const approved = document.createElement('button');
+              approved.dataset.team = String(issue.number);
+              approved.className = 'rv-badge rv-approved';
+              approved.textContent = '紫色团队约定 v' + versions.at(-1).version;
+              approved.onclick = () => {
+                panel.close();
+                window.teamContracts.openIssue(issue.number);
+              };
+              opener.after(approved);
             };
-            opener.after(approved);
+            const versions =
+              latest.has(issue.number) || archived
+                ? window.teamContracts.history(issue.number)
+                : Promise.resolve([]);
+            versions.then(apply).catch(() => {
+              showReviewStatus(badge, { label: '审核状态暂未核实' });
+            });
           }
-        })
-        .catch(() => {});
+        });
     }
     $('#sharedMore').hidden = !hasMore;
   }
@@ -580,8 +621,10 @@
     }
     show(
       manual ? '手动粘贴的方案' : '共享方案 #' + number,
-      `<h3>${esc(issue.title)}</h3><p>${manual ? '手动粘贴，账号未核验' : '提交账号：' + esc(issue.user?.login)} · ${issue.state === 'closed' ? '已关闭（不表示已实现）' : '共享草稿'}<br>基线：<code>${esc(d.baseCommit)}</code></p><p>${esc(summary(d))}</p>${changes(d)}<p>${incompatible ? '当前图无法套用此方案：' + esc(incompatible) : '可以在图上预览。所有改动仍标为 Proposed，正式图和你原有的草稿不会改变。'}</p><div class="lab-row"><button id="compareShared" ${incompatible ? 'disabled' : ''}>修改前后对比</button><button id="previewShared" ${incompatible ? 'disabled' : ''}>在图上预览</button><button id="adoptShared" ${incompatible ? 'disabled' : ''}>复制到我的草稿继续改</button><button id="downloadShared">下载方案</button><button id="sharedRefresh">刷新方案</button><button id="backShared">返回列表</button></div><p><a href="${WEB}/issues${number ? '/' + number : ''}" target="_blank" rel="noreferrer">查看说明 / 讨论 / 编辑 / 关闭记录 ↗</a></p><button id="copyProposalLink">复制本网站方案链接</button>`,
+      `<h3>${esc(issue.title)}</h3><p>${manual ? '手动粘贴，账号未核验' : '提交账号：' + esc(issue.user?.login)} · <span id="sharedReviewStatus">${manual ? '手动预览' : '读取审核状态…'}</span><br>基线：<code>${esc(d.baseCommit)}</code></p><p>${esc(summary(d))}</p>${changes(d)}<p>${incompatible ? '当前图无法套用此方案：' + esc(incompatible) : '可以在图上预览。所有改动仍标为 Proposed，正式图和你原有的草稿不会改变。'}</p><div class="lab-row"><button id="compareShared" ${incompatible ? 'disabled' : ''}>修改前后对比</button><button id="previewShared" ${incompatible ? 'disabled' : ''}>在图上预览</button><button id="adoptShared" ${incompatible ? 'disabled' : ''}>复制到我的草稿继续改</button><button id="downloadShared">下载方案</button><button id="sharedRefresh">刷新方案</button><button id="backShared">返回列表</button></div><p><a href="${WEB}/issues${number ? '/' + number : ''}" target="_blank" rel="noreferrer">查看说明 / 讨论 / 编辑 / 关闭记录 ↗</a></p><button id="copyProposalLink">复制本网站方案链接</button>`,
     );
+    let review = null;
+    const previewButton = $('#previewShared');
     if (!manual && window.teamContracts) {
       const button = document.createElement('button');
       button.textContent = '查看团队约定';
@@ -590,16 +633,26 @@
         panel.close();
         window.teamContracts.openIssue(number);
       };
+      const badge = $('#sharedReviewStatus');
+      previewButton.disabled = true;
       window.teamContracts
         .history(number)
         .then((versions) => {
+          const status = sharedReviewStatus(issue, d, versions);
+          showReviewStatus(badge, status);
           const latest = versions.at(-1);
-          if (latest && button.isConnected) {
+          if (latest) {
             button.textContent = '查看紫色团队约定 v' + latest.version;
             button.className = 'rv-badge rv-approved';
           }
+          review = status;
         })
-        .catch(() => {});
+        .catch(() => {
+          showReviewStatus(badge, { label: '审核状态暂未核实' });
+        })
+        .finally(() => {
+          previewButton.disabled = Boolean(incompatible);
+        });
     }
     if (window.interfaceReview && !incompatible) {
       const button = document.createElement('button');
@@ -620,8 +673,19 @@
       panel.close();
       window.ScenarioCompare.open(d, label);
     };
-    $('#previewShared').onclick = () => {
-      window.mapWorkbench.previewShared(d, label);
+    const detailTicket = sequence;
+    previewButton.onclick = () => {
+      const status = review;
+      if (!panel.open || sequence !== detailTicket) return;
+      if (status?.state) {
+        window.mapWorkbench.previewSharedChanges(
+          d,
+          label + ' · ' + status.label,
+          status.state,
+        );
+      } else {
+        window.mapWorkbench.previewShared(d, label);
+      }
       panel.close();
     };
     $('#adoptShared').onclick = () => {

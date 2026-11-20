@@ -136,20 +136,12 @@
     });
   }
   function preview(v) {
-    const before = wb.getBase(),
-      after = wb.scenario(v.draft);
-    const report = window.ScenarioCompare.calculate(before, after, v.draft);
-    const graph = window.ScenarioCompare.overlayGraph(before, after, report);
-    for (const r of report.rows) {
-      const marks = graph.meta.diffOverlay[r.group];
-      if (r.type === 'review') delete marks[r.id];
-      else if (r.type !== 'removed') marks[r.id] = 'approved';
-    }
-    graph.meta.reviewLabel = '团队约定 #' + v.issue + ' · 紫色 v' + v.version;
-    graph.meta.modeLabel = graph.meta.reviewLabel;
+    wb.previewSharedChanges(
+      v.draft,
+      '团队约定 #' + v.issue + ' · 紫色 v' + v.version,
+      'approved',
+    );
     panel.close();
-    $('compareViewBar').hidden = true;
-    wb.previewReview(graph, v.draft, graph.meta.modeLabel);
   }
   async function openIssue(issue) {
     const token = screen(
