@@ -55,7 +55,12 @@
         ? site
         : 'https://raw.githubusercontent.com/' + repo + '/main/';
     const url = new URL(file(issue, version), origin);
-    const r = await fetchPublic(url);
+    let r = await fetchPublic(url);
+    // Pages can cache a transient gateway response for a missing next version.
+    if (r.status >= 500) {
+      url.searchParams.set('retry', String(Date.now()));
+      r = await fetchPublic(url);
+    }
     if (r.status === 404) return null;
     if (!r.ok) throw Error('团队约定暂时无法读取，请刷新重试。');
     const data = await r.json();
