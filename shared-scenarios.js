@@ -451,6 +451,8 @@
     };
   }
   function sharedReviewStatus(issue, draft, versions) {
+    if (versions.at(-1)?.state === 'withdrawn')
+      return { label: '团队约定已撤下' };
     const match = versions.findLast(
       (v) => JSON.stringify(v.draft) === JSON.stringify(draft),
     );
@@ -508,7 +510,8 @@
                 versions,
               );
               showReviewStatus(badge, status);
-              if (!versions.length) return;
+              if (!versions.length || versions.at(-1).state === 'withdrawn')
+                return;
               const approved = document.createElement('button');
               approved.dataset.team = String(issue.number);
               approved.className = 'rv-badge rv-approved';
@@ -641,7 +644,9 @@
           const status = sharedReviewStatus(issue, d, versions);
           showReviewStatus(badge, status);
           const latest = versions.at(-1);
-          if (latest) {
+          if (latest?.state === 'withdrawn') {
+            button.textContent = '查看撤下记录';
+          } else if (latest) {
             button.textContent = '查看紫色团队约定 v' + latest.version;
             button.className = 'rv-badge rv-approved';
           }

@@ -66,9 +66,13 @@
       typeof data.title !== 'string' ||
       !data.title.trim() ||
       data.title.length > 300 ||
-      data.state !== 'approved'
+      !['approved', 'withdrawn'].includes(data.state)
     )
       throw Error('团队约定的编号或版本未通过校验。');
+    if (data.state === 'withdrawn') {
+      if (version < 2) throw Error('撤下记录缺少原约定版本。');
+      return { issue, version, state: 'withdrawn', title: data.title };
+    }
     return {
       schema: 1,
       issue,
@@ -84,6 +88,7 @@
       const value = await record(issue, n);
       if (!value) return versions;
       versions.push(value);
+      if (value.state === 'withdrawn') return versions;
     }
     throw Error('版本数量超过读取上限。');
   }
@@ -122,15 +127,37 @@
       if (archived)
         $('teamStatus').textContent =
           '显示网站发布时的目录。点开可直接查最新已发布版本。';
-      $('teamList').textContent = '';
-      for (const [issue, version] of [...latest].sort((a, b) => b[0] - a[0])) {
+      const entries = await Promise.all(
+        [...latest]
+          .sort((a, b) => b[0] - a[0])
+          .map(async ([issue, version]) => {
+            try {
+              // An archived directory can predate a withdrawal or a newer version.
+              const last = archived
+                ? (await history(issue)).at(-1)
+                : await record(issue, version);
+              if (last?.state === 'withdrawn') return null;
+              return [issue, last?.version];
+            } catch {
+              return [issue, null];
+            }
+          }),
+      );
+      if (!current(token)) return;
+      $('teamList').replaceChildren();
+      for (const entry of entries.filter(Boolean)) {
+        const [issue, version] = entry;
         const button = document.createElement('button');
-        button.className = 'rv-badge rv-approved';
-        button.textContent = '#' + issue + ' · 紫色 · 已约定 v' + version;
+        if (version) button.className = 'rv-badge rv-approved';
+        button.textContent =
+          '#' +
+          issue +
+          (version ? ' · 紫色 · 已约定 v' + version : ' · 重新核对状态');
         button.onclick = () => openIssue(issue);
         $('teamList').append(button);
       }
-      if (!latest.size) $('teamList').textContent = '暂时没有已发布的约定。';
+      if (!$('teamList').childElementCount)
+        $('teamList').textContent = '暂无生效的团队约定。';
     })().catch((e) => {
       if (current(token)) $('teamList').textContent = e.message;
     });
@@ -155,6 +182,22 @@
         screen('团队约定', '#' + esc(issue) + ' 尚未发布紫色约定。');
         return;
       }
+      const last = versions.at(-1);
+      if (last.state === 'withdrawn') {
+        screen(
+          '团队约定 #' + issue,
+          '<h3>' +
+            esc(last.title) +
+            '</h3><p>已撤下 · 原紫色 v' +
+            (last.version - 1) +
+            ' 已停止使用。</p><a href="' +
+            git +
+            '/issues/' +
+            issue +
+            '" target="_blank" rel="noreferrer">查看原方案与讨论 ↗</a>',
+        );
+        return;
+      }
       function show(v) {
         const active = v === versions.at(-1);
         screen(
@@ -176,6 +219,7 @@
             v.draft.removedEdges.length +
             ' 条连线。</p>' +
             '<div class="lab-row"><button id="teamGraph">看紫色接口图</button><button id="teamDiff">查看修改前后</button><button id="teamImport">复制约定到本地审核</button></div>' +
+            (active ? '<button id="teamWithdraw">撤下团队约定</button>' : '') +
             '<label>版本<select id="teamVersion">' +
             versions
               .map(
@@ -198,6 +242,40 @@
             file(issue, v.version) +
             '" target="_blank" rel="noreferrer">发布记录 ↗</a></p>',
         );
+        if (active)
+          $('teamWithdraw').onclick = () => {
+            const path = file(issue, v.version + 1);
+            const json =
+              JSON.stringify(
+                {
+                  schema: 1,
+                  issue,
+                  version: v.version + 1,
+                  state: 'withdrawn',
+                  title: v.title,
+                },
+                null,
+                2,
+              ) + '\n';
+            const link =
+              git +
+              '/new/main?' +
+              new URLSearchParams({ filename: path, value: json });
+            screen(
+              '撤下团队约定 #' + issue,
+              '<h3>' +
+                esc(v.title) +
+                '</h3><p>撤下后，全组的生效约定列表将移除 #' +
+                issue +
+                '。旧链接显示“已撤下”，GitHub 讨论和历史提交保留。</p>' +
+                '<p>请用有地图仓库写权限的账号在 GitHub 确认提交。若文件已存在，请返回地图重新核对当前版本。</p>' +
+                '<div class="lab-row"><button id="teamCancelWithdraw">取消</button><a id="teamConfirmWithdraw" target="_blank" rel="noreferrer" href="' +
+                esc(link) +
+                '">去 GitHub 确认撤下 ↗</a></div><details><summary>若 GitHub 编辑框为空，复制撤下记录</summary><textarea readonly id="teamWithdrawJson"></textarea></details>',
+            );
+            $('teamWithdrawJson').value = json;
+            $('teamCancelWithdraw').onclick = () => show(v);
+          };
         $('teamVersion').value = String(v.version);
         $('teamVersion').onchange = () =>
           show(versions[Number($('teamVersion').value) - 1]);
@@ -264,6 +342,8 @@
         if (!current(token)) return;
         if (!source.draft) throw Error('这条 Issue 不是模拟方案。');
         const latest = versions.at(-1);
+        if (latest?.state === 'withdrawn')
+          throw Error('此团队约定已撤下。请另建共享方案后再发布。');
         const ancestor = plan.versions.filter(
           (x) =>
             x.n < v.n && (x.state === 'approved' || x.state === 'verified'),
