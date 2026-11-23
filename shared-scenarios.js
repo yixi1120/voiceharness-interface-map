@@ -24,6 +24,7 @@
   let timer = null,
     sequence = 0,
     loaded = [],
+    listState = 'open',
     nextPage = 1,
     hasMore = false,
     loading = false,
@@ -205,7 +206,11 @@
   async function get(endpoint, force = false) {
     if (!validEndpoint(endpoint)) throw Error('方案地址无效');
     const item = cached(endpoint);
-    if (item && Date.now() - item.at < (force ? 3000 : FRESH_MS))
+    if (
+      item &&
+      force !== 'after-withdrawal' &&
+      Date.now() - item.at < (force ? 3000 : FRESH_MS)
+    )
       return cacheResult(item);
     if (Date.now() < cooldownUntil) {
       if (item) return cacheResult(item, cooldownMessage());
@@ -444,7 +449,7 @@
               '请按 Ctrl+C / ⌘C 复制黄色草稿正文，粘贴到 GitHub Issue 的描述框。';
           }
         };
-        $('#shareAfterSubmit').onclick = list;
+        $('#shareAfterSubmit').onclick = () => list();
       } catch (e) {
         fail(e);
       }
@@ -477,25 +482,39 @@
   function renderList() {
     const container = $('#sharedList');
     if (!container) return;
-    container.innerHTML = loaded.length
-      ? loaded
+    const visible = loaded.filter((issue) =>
+      listState === 'closed'
+        ? issue.state === 'closed'
+        : issue.state !== 'closed',
+    );
+    container.innerHTML = visible.length
+      ? visible
           .map(
             (i) =>
               `<article class="shared-card"><strong>${esc(i.title)}</strong><p>#${i.number} · ${esc(i.user?.login || '未知账号')} · <span data-review-status>读取审核状态…</span> · ${esc(i.updated_at?.slice(0, 10))}</p><button data-proposal="${i.number}">查看方案</button> <a href="${WEB}/issues/${i.number}" target="_blank" rel="noreferrer">GitHub 记录 ↗</a></article>`,
           )
           .join('')
-      : '<p>已加载的记录中还没有共享方案。模拟改图后，点“提交共享方案”开始。</p>';
+      : '<p>已加载的记录中没有' +
+        (listState === 'closed' ? '已关闭的方案。' : '进行中的方案。') +
+        (hasMore ? '可加载更早记录。' : '') +
+        '</p>';
     container
       .querySelectorAll('[data-proposal]')
       .forEach((b) => (b.onclick = () => open(Number(b.dataset.proposal))));
-    if (window.teamContracts && loaded.length) {
+    if (window.teamContracts && visible.length) {
       const listTicket = sequence;
+      const firstCard = container.firstElementChild;
       window.teamContracts
         .catalog()
         .catch(() => ({ latest: new Map(), archived: true }))
         .then(({ latest, archived }) => {
-          if (sequence !== listTicket || !panel.open) return;
-          for (const issue of loaded) {
+          if (
+            sequence !== listTicket ||
+            !panel.open ||
+            firstCard !== container.firstElementChild
+          )
+            return;
+          for (const issue of visible) {
             const opener = container.querySelector(
               '[data-proposal="' + issue.number + '"]',
             );
@@ -577,11 +596,18 @@
       if (loadSequence === ticket) loading = false;
     }
   }
-  function list() {
+  function list(state = 'open', force = false) {
+    listState = state;
     show(
       '共享方案',
-      `<p>这里读取地图仓库里的模拟方案。任何人都可查看，作者以 GitHub 账号为准；查看不会覆盖你的本机草稿。</p><div class="lab-row"><button id="sharedRefresh">刷新方案</button><button id="sharedSubmit">提交我的草稿</button><a href="${WEB}/issues" target="_blank" rel="noreferrer">在 GitHub 查看 ↗</a></div><label>按方案编号打开<input id="proposalNumber" type="number" min="1" placeholder="例如 12"></label><button id="openProposalNumber">打开此方案</button><div id="sharedList"></div><button id="sharedMore" hidden>加载更早记录</button>`,
+      `<p>这里读取地图仓库里的模拟方案。任何人都可查看，作者以 GitHub 账号为准；查看不会覆盖你的本机草稿。</p><div class="lab-row"><button id="sharedRefresh">刷新方案</button><button id="sharedSubmit">提交我的草稿</button><a href="${WEB}/issues" target="_blank" rel="noreferrer">在 GitHub 查看 ↗</a></div><label>按方案编号打开<input id="proposalNumber" type="number" min="1" placeholder="例如 12"></label><button id="openProposalNumber">打开此方案</button><label>方案状态<select id="sharedListState"><option value="open">进行中的方案</option><option value="closed">已关闭 / 历史方案</option></select></label><div id="sharedList"></div><button id="sharedMore" hidden>加载更早记录</button>`,
     );
+    const filter = $('#sharedListState');
+    filter.value = listState;
+    filter.onchange = () => {
+      listState = filter.value;
+      renderList();
+    };
     loaded = [];
     nextPage = 1;
     hasMore = false;
@@ -593,7 +619,7 @@
       if (Number.isSafeInteger(n) && n > 0) open(n);
       else fail(Error('请输入有效编号'));
     };
-    refresh();
+    refresh(false, force);
   }
   async function open(number, force = false) {
     if (!Number.isSafeInteger(number) || number < 1) return;
@@ -624,8 +650,22 @@
     }
     show(
       manual ? '手动粘贴的方案' : '共享方案 #' + number,
-      `<h3>${esc(issue.title)}</h3><p>${manual ? '手动粘贴，账号未核验' : '提交账号：' + esc(issue.user?.login)} · <span id="sharedReviewStatus">${manual ? '手动预览' : '读取审核状态…'}</span><br>基线：<code>${esc(d.baseCommit)}</code></p><p>${esc(summary(d))}</p>${changes(d)}<p>${incompatible ? '当前图无法套用此方案：' + esc(incompatible) : '可以在图上预览。所有改动仍标为 Proposed，正式图和你原有的草稿不会改变。'}</p><div class="lab-row"><button id="compareShared" ${incompatible ? 'disabled' : ''}>修改前后对比</button><button id="previewShared" ${incompatible ? 'disabled' : ''}>在图上预览</button><button id="adoptShared" ${incompatible ? 'disabled' : ''}>复制到我的草稿继续改</button><button id="downloadShared">下载方案</button><button id="sharedRefresh">刷新方案</button><button id="backShared">返回列表</button></div><p><a href="${WEB}/issues${number ? '/' + number : ''}" target="_blank" rel="noreferrer">查看说明 / 讨论 / 编辑 / 关闭记录 ↗</a></p><button id="copyProposalLink">复制本网站方案链接</button>`,
+      `<h3>${esc(issue.title)}</h3><p>${manual ? '手动粘贴，账号未核验' : '提交账号：' + esc(issue.user?.login)} · ${!manual && issue.state === 'closed' ? '方案已关闭 · ' : ''}<span id="sharedReviewStatus">${manual ? '手动预览' : '读取审核状态…'}</span><br>基线：<code>${esc(d.baseCommit)}</code></p><p>${esc(summary(d))}</p>${changes(d)}<p>${incompatible ? '当前图无法套用此方案：' + esc(incompatible) : '可以在图上预览。所有改动仍标为 Proposed，正式图和你原有的草稿不会改变。'}</p><div class="lab-row"><button id="compareShared" ${incompatible ? 'disabled' : ''}>修改前后对比</button><button id="previewShared" ${incompatible ? 'disabled' : ''}>在图上预览</button><button id="adoptShared" ${incompatible ? 'disabled' : ''}>复制到我的草稿继续改</button><button id="downloadShared">下载方案</button><button id="sharedRefresh">刷新方案</button><button id="backShared">返回列表</button></div><p><a href="${WEB}/issues${number ? '/' + number : ''}" target="_blank" rel="noreferrer">查看 GitHub 记录 ↗</a></p><button id="copyProposalLink">复制本网站方案链接</button>`,
     );
+    if (!manual && issue.state === 'open') {
+      const withdraw = document.createElement('button');
+      withdraw.id = 'withdrawProposal';
+      withdraw.textContent = '撤回方案';
+      $('#backShared').before(withdraw);
+      withdraw.onclick = () => {
+        show(
+          '撤回共享方案 #' + number,
+          `<p>${esc(issue.title)}</p><p>在 GitHub 页面底部选择“Close issue”关闭这条方案。返回地图刷新后，可在“已关闭 / 历史方案”中找到它。</p><p>已发布的团队约定单独管理。如需停用，请在“团队约定”中撤下。</p><div class="lab-row"><a href="${WEB}/issues/${number}" target="_blank" rel="noreferrer">去 GitHub 关闭方案 #${number} ↗</a><button id="withdrawRefresh">刷新方案列表</button><button id="cancelWithdrawProposal">返回方案</button></div>`,
+        );
+        $('#cancelWithdrawProposal').onclick = () => open(number);
+        $('#withdrawRefresh').onclick = () => list('open', 'after-withdrawal');
+      };
+    }
     let review = null;
     const previewButton = $('#previewShared');
     if (!manual && window.teamContracts) {
@@ -720,7 +760,7 @@
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     };
     $('#sharedRefresh').onclick = () => open(number, true);
-    $('#backShared').onclick = list;
+    $('#backShared').onclick = () => list(listState, true);
     $('#copyProposalLink').onclick = async () => {
       const url =
         'https://yixi1120.github.io/voiceharness-interface-map/#proposal=' +
@@ -742,7 +782,7 @@
     sequence++;
     clearTimeout(timer);
   });
-  window.addEventListener('map-share-list', list);
+  window.addEventListener('map-share-list', () => list());
   window.addEventListener('map-share-submit', submit);
   // Returning from GitHub must not repeatedly spend the anonymous API quota.
   // Explicit refresh checks for edits; reopening uses the short-lived cache.
