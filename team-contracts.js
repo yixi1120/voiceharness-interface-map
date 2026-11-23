@@ -101,7 +101,11 @@
     let names,
       archived = false;
     try {
-      const r = await fetchPublic(api);
+      const r = window.mapGitHubLogin
+        ? await window.mapGitHubLogin.read('/contents/contracts?ref=main', {
+            cache: 'no-store',
+          })
+        : await fetchPublic(api);
       if (!r.ok) throw Error('目录暂时无法读取。');
       const items = await r.json();
       names = items.filter((f) => f.type === 'file').map((f) => f.name);

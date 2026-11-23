@@ -123,7 +123,10 @@
     if (el) el.textContent = e.message || String(e);
   }
   // Cache only public responses for this repository, never credentials or drafts.
-  const CACHE_KEY = 'voiceharness-shared-read-v1:' + REPO,
+  const CACHE_KEY =
+      'voiceharness-shared-read-v1:' +
+      REPO +
+      (window.mapGitHubLogin ? ':user:' + window.mapGitHubLogin.account : ''),
     FRESH_MS = 60000,
     MAX_AGE_MS = 7 * 86400000,
     pending = new Map();
@@ -228,11 +231,14 @@
     if (pending.has(endpoint)) return pending.get(endpoint);
     const request = (async () => {
       try {
-        const r = await fetch(API + endpoint, {
+        const options = {
           headers: { Accept: 'application/vnd.github+json' },
           credentials: 'omit',
           signal: AbortSignal.timeout(20000),
-        });
+        };
+        const r = window.mapGitHubLogin
+          ? await window.mapGitHubLogin.read(endpoint, options)
+          : await fetch(API + endpoint, options);
         if (!r.ok) {
           let message = '';
           try {
@@ -263,11 +269,13 @@
             throw Error(cooldownMessage());
           }
           const error = Error(
-            r.status === 404
-              ? '没有找到此方案，可能已删除或无法公开访问，请核对 GitHub 记录。'
-              : r.status === 403
-                ? 'GitHub 拒绝了本次读取（403），暂未确认是限流。请直接打开 GitHub 记录检查访问情况。'
-                : `暂时无法读取 GitHub（${r.status}），请稍后重试。`,
+            r.status === 401
+              ? '登录已过期，请重新用 GitHub 登录。'
+              : r.status === 404
+                ? '没有找到此方案，可能已删除或无法公开访问，请核对 GitHub 记录。'
+                : r.status === 403
+                  ? 'GitHub 拒绝了本次读取（403），暂未确认是限流。请直接打开 GitHub 记录检查访问情况。'
+                  : `暂时无法读取 GitHub（${r.status}），请稍后重试。`,
           );
           // A deleted or inaccessible record must not silently reappear from cache.
           if (r.status === 404 || r.status === 401) {
