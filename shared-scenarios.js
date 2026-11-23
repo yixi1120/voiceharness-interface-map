@@ -83,6 +83,15 @@
   function bodyFor(d, note) {
     return `${MARK}\n这是接口地图的模拟方案，尚未实现或核验；关闭此记录也不表示代码已合入。\n\n说明：${note}\n\n基线：${d.baseCommit}\n\n请保留下方数据块，地图据此恢复方案。\n\n\`\`\`vh-scenario-v1\n${encode(d)}\n\`\`\`\n`;
   }
+  // Older closed proposals sometimes replace the entire draft with “已作废”.
+  function isClosedProposalRecord(issue) {
+    return (
+      !issue.pull_request &&
+      issue.state === 'closed' &&
+      issue.title?.startsWith('[模拟方案]') &&
+      !issue.body?.includes(MARK)
+    );
+  }
   function parseIssue(issue) {
     if (
       issue.pull_request ||
@@ -277,7 +286,10 @@
         // A list already contains Issue bodies. Opening a card need not refetch it.
         if (Array.isArray(data))
           for (const issue of data) {
-            if (!issue.pull_request && issue.body?.includes(MARK))
+            if (
+              !issue.pull_request &&
+              (issue.body?.includes(MARK) || isClosedProposalRecord(issue))
+            )
               remember('/issues/' + issue.number, issue);
           }
         return { data, notice: '' };
@@ -521,6 +533,10 @@
             const badge = opener.parentElement.querySelector(
               '[data-review-status]',
             );
+            if (isClosedProposalRecord(issue)) {
+              showReviewStatus(badge, { label: '方案已关闭' });
+              continue;
+            }
             const apply = (versions) => {
               if (!opener.isConnected || sequence !== listTicket) return;
               const status = sharedReviewStatus(
@@ -572,7 +588,7 @@
       const matches = items.filter(
         (i) =>
           !i.pull_request &&
-          i.body?.includes(MARK) &&
+          (i.body?.includes(MARK) || isClosedProposalRecord(i)) &&
           Number.isSafeInteger(i.number),
       );
       loaded = append
@@ -629,6 +645,15 @@
       const result = await get('/issues/' + number, force);
       const issue = result.data;
       if (ticket !== sequence || !panel.open) return;
+      if (isClosedProposalRecord(issue)) {
+        show(
+          '共享方案 #' + number,
+          `<h3>${esc(issue.title)}</h3><p>方案已关闭。当前 Issue 正文没有方案数据，可到 GitHub 查看记录和讨论。</p><div class="lab-row"><a href="${WEB}/issues/${number}" target="_blank" rel="noreferrer">查看 GitHub 记录 ↗</a><button id="backShared">返回历史方案</button></div>`,
+        );
+        $('#sharedStatus').textContent = result.notice;
+        $('#backShared').onclick = () => list('closed', true);
+        return;
+      }
       const d = parseIssue(issue);
       if (!d) throw Error('此记录不是接口地图模拟方案');
       displayIssue(issue, d, result.notice);
