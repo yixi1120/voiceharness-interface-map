@@ -17,6 +17,19 @@
         })[c],
     );
   const baseLabel = base.meta.modeLabel || '已核验基线';
+  function baselineLink(commit, hash) {
+    if (commit === base.meta.referenceCommit) return '';
+    if (
+      commit !== window.MAP_CURRENT_BASE &&
+      !window.MAP_ARCHIVED_BASES?.includes(commit)
+    )
+      return '';
+    const url = new URL(location.href);
+    if (commit === window.MAP_CURRENT_BASE) url.searchParams.delete('baseline');
+    else url.searchParams.set('baseline', commit);
+    url.hash = hash;
+    return url.href;
+  }
   const key = 'voiceharness-scenario-v1:' + base.meta.referenceCommit;
   const empty = () => ({
     schema: 1,
@@ -519,6 +532,15 @@
       }
       updates();
     };
+  if (
+    window.MAP_CURRENT_BASE &&
+    window.MAP_CURRENT_BASE !== base.meta.referenceCommit
+  ) {
+    const link = document.createElement('a');
+    link.href = baselineLink(window.MAP_CURRENT_BASE, '');
+    link.textContent = '正在查看历史底图 · 返回当前底图';
+    $('labBar').prepend(link);
+  }
   $('labBase').onclick = () => {
     mode = 'baseline';
     preview(base, baseLabel);
@@ -541,6 +563,7 @@
     scenario,
     getDraft: () => structuredClone(draft),
     getMode: () => mode,
+    baselineLink,
     getBase: () => structuredClone(base),
     getComparisonTarget: () =>
       mode === 'shared' && sharedContext

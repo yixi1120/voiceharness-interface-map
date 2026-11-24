@@ -397,6 +397,93 @@
       '</ul></details>'
     );
   }
+  function showReference(issue, d) {
+    const base = window.mapWorkbench.getBase();
+    const ids = new Set([...base.nodes, ...d.nodes].map((n) => n.id));
+    for (const id of d.removedNodes) ids.delete(id);
+    const names = {
+      label: '名称',
+      parent: '所属组件',
+      module: '模块',
+      kind: '层级',
+      summary: '说明',
+      signature: '签名',
+      input: '输入',
+      output: '输出',
+      errors: '异常处理',
+      source: '起点',
+      target: '终点',
+      type: '关系类型',
+    };
+    const items = [];
+    const unresolved = [];
+    for (const [group, removed] of [
+      ['nodes', 'removedNodes'],
+      ['edges', 'removedEdges'],
+    ]) {
+      const originals = new Map(base[group].map((x) => [x.id, x]));
+      for (const id of [
+        ...new Set([...d[group].map((x) => x.id), ...d[removed]]),
+      ]) {
+        const original = originals.get(id);
+        const next = d[removed].includes(id)
+          ? null
+          : d[group].find((x) => x.id === id);
+        const missing =
+          next && group === 'edges'
+            ? [next.source, next.target].filter((x) => !ids.has(x))
+            : [];
+        if (missing.length) unresolved.push(id + ' 缺少 ' + missing.join('、'));
+        const rows = Object.entries(names)
+          .filter(
+            ([k]) =>
+              next?.[k] !== undefined || (!next && original?.[k] !== undefined),
+          )
+          .map(
+            ([k, label]) =>
+              '<tr><th>' +
+              label +
+              '</th><td>' +
+              esc(original?.[k] ?? '—') +
+              '</td><td>' +
+              esc(next?.[k] ?? '—') +
+              '</td></tr>',
+          )
+          .join('');
+        items.push(
+          '<details><summary>' +
+            esc(next?.label || original?.label || id) +
+            ' · ' +
+            esc(id) +
+            '</summary>' +
+            (missing.length
+              ? '<p>缺少连线端点：' + esc(missing.join('、')) + '</p>'
+              : '') +
+            (!original ? '<p>当前底图未收录此项。</p>' : '') +
+            (!next ? '<p>方案拟删除此项。</p>' : '') +
+            '<table><thead><tr><th>字段</th><th>当前底图</th><th>草稿填写</th></tr></thead><tbody>' +
+            rows +
+            '</tbody></table></details>',
+        );
+      }
+    }
+    show(
+      '方案 #' + issue.number + ' · 与当前底图逐项对照',
+      '<p>当前底图 ' +
+        esc(base.meta.referenceCommit.slice(0, 7)) +
+        '，草稿基线 ' +
+        esc(d.baseCommit.slice(0, 7)) +
+        '。这里只对照草稿填写的字段。还原提交时的前后图需要原底图和完整的连线端点。</p>' +
+        '<button id="backToSharedDetail">返回方案</button>' +
+        (unresolved.length
+          ? '<p><strong>需要补的连线</strong></p><ul>' +
+            unresolved.map((x) => '<li>' + esc(x) + '</li>').join('') +
+            '</ul>'
+          : '') +
+        items.join(''),
+    );
+    $('#backToSharedDetail').onclick = () => displayIssue(issue, d);
+  }
   function summary(d) {
     return `${d.nodes.length} 个新增/修改节点 · ${d.edges.length} 条新增/修改连线 · ${d.removedNodes.length} 个删除节点 · ${d.removedEdges.length} 条删除连线`;
   }
@@ -685,6 +772,22 @@
       manual ? '手动粘贴的方案' : '共享方案 #' + number,
       `<h3>${esc(issue.title)}</h3><p>${manual ? '手动粘贴，账号未核验' : '提交账号：' + esc(issue.user?.login)} · ${!manual && issue.state === 'closed' ? '方案已关闭 · ' : ''}<span id="sharedReviewStatus">${manual ? '手动预览' : '读取审核状态…'}</span><br>基线：<code>${esc(d.baseCommit)}</code></p><p>${esc(summary(d))}</p>${changes(d)}<p>${incompatible ? '当前图无法套用此方案：' + esc(incompatible) : '可以在图上预览。所有改动仍标为 Proposed，正式图和你原有的草稿不会改变。'}</p><div class="lab-row"><button id="compareShared" ${incompatible ? 'disabled' : ''}>修改前后对比</button><button id="previewShared" ${incompatible ? 'disabled' : ''}>在图上预览</button><button id="adoptShared" ${incompatible ? 'disabled' : ''}>复制到我的草稿继续改</button><button id="downloadShared">下载方案</button><button id="sharedRefresh">刷新方案</button><button id="backShared">返回列表</button></div><p><a href="${WEB}/issues${number ? '/' + number : ''}" target="_blank" rel="noreferrer">查看 GitHub 记录 ↗</a></p><button id="copyProposalLink">复制本网站方案链接</button>`,
     );
+    if (incompatible && number) {
+      const matching = window.mapWorkbench.baselineLink(
+        d.baseCommit,
+        'proposal=' + number,
+      );
+      if (matching) {
+        const link = document.createElement('a');
+        link.href = matching;
+        link.textContent = '打开此方案对应的底图';
+        $('#compareShared').before(link);
+      } else {
+        const compare = $('#compareShared');
+        compare.disabled = false;
+        compare.textContent = '与当前底图逐项对照';
+      }
+    }
     if (!manual && issue.state === 'open') {
       const withdraw = document.createElement('button');
       withdraw.id = 'withdrawProposal';
@@ -748,6 +851,10 @@
       };
     }
     $('#compareShared').onclick = () => {
+      if (incompatible) {
+        showReference(issue, d);
+        return;
+      }
       panel.close();
       window.ScenarioCompare.open(d, label);
     };

@@ -285,6 +285,16 @@
             $('teamWithdrawJson').value = json;
             $('teamCancelWithdraw').onclick = () => show(v);
           };
+        const matching = wb.baselineLink(
+          v.draft.baseCommit,
+          'contract=' + issue,
+        );
+        if (matching) {
+          const link = document.createElement('a');
+          link.href = matching;
+          link.textContent = '在匹配的底图上打开此约定';
+          $('teamGraph').parentElement.before(link);
+        }
         $('teamVersion').value = String(v.version);
         $('teamVersion').onchange = () =>
           show(versions[Number($('teamVersion').value) - 1]);
