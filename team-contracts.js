@@ -61,6 +61,16 @@
       url.searchParams.set('retry', String(Date.now()));
       r = await fetchPublic(url);
     }
+    if (r.status >= 500 && origin === site) {
+      // Pages may return 503 for an absent next version. Verify against the
+      // public registry itself before treating the current version as latest.
+      r = await fetchPublic(
+        new URL(
+          file(issue, version),
+          'https://raw.githubusercontent.com/' + repo + '/main/',
+        ),
+      );
+    }
     if (r.status === 404) return null;
     if (!r.ok) throw Error('团队约定暂时无法读取，请刷新重试。');
     const data = await r.json();
