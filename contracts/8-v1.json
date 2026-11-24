@@ -1,0 +1,931 @@
+{
+  "schema": 1,
+  "issue": 8,
+  "version": 1,
+  "state": "approved",
+  "title": "[模拟方案] 语音交互初版实现·信息识别·轮次检测·停顿打断",
+  "draft": {
+    "schema": 1,
+    "baseCommit": "957c0479c85566401c0add7ebcb1f02aad27d1d7",
+    "nodes": [
+      {
+        "id": "draft.voice.speech-bounds",
+        "kind": "interface",
+        "parent": "voice.transport",
+        "module": "voice",
+        "label": "发声边界",
+        "summary": "转交服务端 VAD 的起止事件。",
+        "signature": "onSpeechStarted / onSpeechStopped",
+        "input": "当前传输代次、itemId、服务端音频时间（如有）",
+        "output": "带实时会话上下文的发声事件",
+        "errors": "缺失或不能对齐的边界会限制声学特征提取。"
+      },
+      {
+        "id": "draft.voice.transcript-partial",
+        "kind": "interface",
+        "parent": "voice.transport",
+        "module": "voice",
+        "label": "实时转写",
+        "summary": "按输入项提供增量文本或稳定前缀及可变后缀。",
+        "signature": "onInputTranscriptDelta(event)",
+        "input": "ASR text / delta、stash、可选语言及情绪",
+        "output": "带 itemId 的输入转写事件",
+        "errors": "可变后缀可被覆盖；已被草稿接管的输入在草稿链路处理。"
+      },
+      {
+        "id": "draft.voice.transcript-final",
+        "kind": "interface",
+        "parent": "voice.transport",
+        "module": "voice",
+        "label": "最终转写与迟到观察",
+        "summary": "区分正常完成、失败和已消费输入的迟到观察。",
+        "signature": "onInputTranscriptDone / onInputTranscriptObservation",
+        "input": "ASR completed / failed、提交身份和已消费记录",
+        "output": "最终原话或带原因的转写观察",
+        "errors": "迟到事件不能再次触发直接回复；最终事件可能缺少语言或情绪。"
+      },
+      {
+        "id": "voice.v1.tracker",
+        "kind": "interface",
+        "parent": "live.session",
+        "module": "live",
+        "label": "同一输入的语音信息归集",
+        "summary": "按通话、传输代次和输入项保存预览、最终文本与元数据。",
+        "signature": "SpeechInputTracker.boundary / partial / final / endInput",
+        "input": "callEpoch、transportGeneration、itemId、边界和转写",
+        "output": "带 revision 的 partial、final 或 features",
+        "errors": "代次变化时隔离旧项；已结束的预览不覆盖最终文本。"
+      },
+      {
+        "id": "voice.v1.audio-window",
+        "kind": "interface",
+        "parent": "voice.transport",
+        "module": "voice",
+        "label": "按语音边界读取音频窗口",
+        "summary": "从当前传输的有界 PCM16 缓冲区取对齐的片段。",
+        "signature": "speechInputAudio(startMs, endMs, maxBytes, generation)",
+        "input": "音频边界、字节上限及连接代次",
+        "output": "可用的 PCM16 音频窗口",
+        "errors": "窗口过期、代次失配或音频不可用时不提供样本。"
+      },
+      {
+        "id": "draft.voice.features",
+        "kind": "interface",
+        "parent": "live.session",
+        "module": "live",
+        "label": "语速和停顿估计",
+        "summary": "基于 16 kHz PCM16 信号估计有效发声、停顿和语速。",
+        "signature": "deriveSpeechFeatures(input): SpeechFeatures",
+        "input": "有界音频、最终原话、可选语言与边界",
+        "output": "source、status 及可选 voicedMs、pauseMs、pauseCount、speechRate 和单位",
+        "errors": "区分缺少边界、无可用音频、有效发声不足；语速单位无法确定时省略。"
+      },
+      {
+        "id": "draft.voice.input-info",
+        "kind": "interface",
+        "parent": "live.session",
+        "module": "live",
+        "label": "语音信息回传",
+        "summary": "按身份和修订号交付预览、最终正文或异步声学特征。",
+        "signature": "onSpeechInputInfo(event: SpeechInputInfo): void",
+        "input": "SpeechInputTracker 发布的事件",
+        "output": "可选订阅者收到事件；函数返回 void",
+        "errors": "过期通话的事件不发布；特征可以晚于最终文本。"
+      },
+      {
+        "id": "draft.voice.context",
+        "kind": "interface",
+        "parent": "live.session",
+        "module": "live",
+        "label": "读取语音上下文",
+        "summary": "按三元身份读取同一输入的最终正文、元数据和已就绪特征。",
+        "signature": "LiveSession.speechContextFor(identity)",
+        "input": "callEpoch、transportGeneration、itemId",
+        "output": "SpeechInputContext 或 undefined",
+        "errors": "无最终文本或身份失配时返回 undefined。"
+      },
+      {
+        "id": "draft.voice.input-commit",
+        "kind": "interface",
+        "parent": "voice.transport",
+        "module": "voice",
+        "label": "输入提交确认",
+        "summary": "校验、去重服务端音频提交，向启用的轮次控制器登记输入。",
+        "signature": "commitInputItem(message, type, itemId)",
+        "input": "input_audio_buffer.committed、itemId、当前响应身份",
+        "output": "有效的提交状态和待判定输入",
+        "errors": "重复、已消费或被拒绝的输入不会再次排队。"
+      },
+      {
+        "id": "voice.v1.controller",
+        "kind": "interface",
+        "parent": "voice.transport",
+        "module": "voice",
+        "label": "本地轮次与重叠发声控制",
+        "summary": "同一候选归集发声、提交和转写，分别产出轮次结论和插话意图。 启动配置由 QWEN_LIVE_HARNESS_TURN_CONTROL 和 QWEN_LIVE_HARNESS_LOCAL_INTERRUPTION 控制。",
+        "signature": "TurnController.start / stopped / committed / transcript",
+        "input": "当前 itemId、目标 responseId、转写及其 final 标记、策略参数",
+        "output": "TurnEndDecision 和 TurnIntentEvent 回调",
+        "errors": "替换、拒绝、重连或关闭时作废候选与定时器；轮次检测和本地插话各有开关。"
+      },
+      {
+        "id": "draft.voice.turn-end",
+        "kind": "interface",
+        "parent": "voice.transport",
+        "module": "voice",
+        "label": "轮次结束判定",
+        "summary": "按是否仍在说话、提交状态、语句完整度和停顿窗口判断何时接话。",
+        "signature": "decideTurnEnd(input: TurnEndInput): TurnEndDecision",
+        "input": "turnId、turnRevision、itemId、committed、speaking、text、replyGate、停顿时间和短长窗口",
+        "output": "wait / ready / abandon，附原因、时间、可选下次评估时间",
+        "errors": "无有效提交则等待；明确未说完到长窗仍不完整则放弃；普通空转写有界等待。"
+      },
+      {
+        "id": "prop.turn",
+        "kind": "interface",
+        "parent": "voice.transport",
+        "module": "voice",
+        "label": "停顿、附和、打断与改口",
+        "summary": "区分仅停播与继续派发指令。明确停播词可提前止声，最终附和抑制直接回复。 本方案有意复用旧标识 prop.turn，仅描述实装的 onTurnIntent 回调。原拟议连线 e090、e091 移除。",
+        "signature": "onTurnIntent(event: TurnIntentEvent & RealtimeEventContext): void",
+        "input": "候选轮次、重叠目标 responseId、当前转写、观察窗",
+        "output": "kind、phase、replyGate、stopPlayback、turnRevision 和目标身份",
+        "errors": "观察窗到期可发 tentative/hold；后续证据再确认；“嗯”与“嗯，等一下”分别处理。"
+      },
+      {
+        "id": "draft.live.turn-state",
+        "kind": "interface",
+        "parent": "live.session",
+        "module": "live",
+        "label": "主流程接收轮次结论",
+        "summary": "记录 wait、ready、abandon 并同步语音候选状态。",
+        "signature": "callbacksFor(context).onTurnDecision(event)",
+        "input": "当前通话的轮次结论",
+        "output": "更新 speechInProgress 及输出注入时机",
+        "errors": "丢弃过期通话；被下一输入替代的候选不结束新候选。"
+      },
+      {
+        "id": "draft.voice.reply-bind",
+        "kind": "interface",
+        "parent": "voice.transport",
+        "module": "voice",
+        "label": "绑定现有直接回复",
+        "summary": "已放行的输入尝试绑定仍有效的直接回复。",
+        "signature": "bindResponseInput(responseId): boolean",
+        "input": "当前直接回复、已批准的 itemId",
+        "output": "绑定成功标志和响应到输入的关联",
+        "errors": "绑定失败按传输状态处理，避免同一输入派生重复回复。"
+      },
+      {
+        "id": "draft.voice.reply-create",
+        "kind": "interface",
+        "parent": "voice.transport",
+        "module": "voice",
+        "label": "调度直接回复",
+        "summary": "在没有可复用的直接回复时按输入身份请求生成。",
+        "signature": "requestResponseCreate('direct', undefined, itemId)",
+        "input": "可接话输入或一次提交的口述全文",
+        "output": "排队或发送 response.create",
+        "errors": "取消、过期和已消费输入受传输层调度及去重约束。"
+      },
+      {
+        "id": "draft.live.confirm-interruption",
+        "kind": "interface",
+        "parent": "live.session",
+        "module": "live",
+        "label": "核对打断的播放目标",
+        "summary": "确认目标仍在播放时清空 Host 输出，并更新播报状态。",
+        "signature": "callbacksFor(context).onTurnIntent(event)",
+        "input": "confirmed 事件、stopPlayback、targetResponseId、当前播放或生成目标",
+        "output": "停止对应播报、清字幕并记录播放清空",
+        "errors": "tentative 只登记候选；错配目标或已抑制输出不重复清空。"
+      },
+      {
+        "id": "voice.v1.cancel-target",
+        "kind": "interface",
+        "parent": "voice.transport",
+        "module": "voice",
+        "label": "取消被打断的生成",
+        "summary": "传输层核对仍在生成的 responseId 后发送取消并跟踪回执。",
+        "signature": "response.cancel",
+        "input": "stopPlayback、targetResponseId、activeResponseId",
+        "output": "取消对应生成，登记取消状态",
+        "errors": "目标不匹配或已取消则跳过；打断语音不等同于停止后台任务。"
+      },
+      {
+        "id": "draft.web.host-clear-output",
+        "kind": "interface",
+        "parent": "web.host",
+        "module": "web",
+        "label": "清空当前通话输出",
+        "summary": "重置 Host 输出队列并通知客户端清空。",
+        "signature": "clearOutput(epoch): void",
+        "input": "已核对的通话 epoch",
+        "output": "host.clear_output 消息",
+        "errors": "过期通话不清空新队列。"
+      },
+      {
+        "id": "draft.web.browser-clear-output",
+        "kind": "interface",
+        "parent": "web.browser",
+        "module": "web",
+        "label": "浏览器音频队列清空",
+        "summary": "网页收到清空通知后停止旧音源并重置播放代次。",
+        "signature": "AudioEngine.clearOutput()",
+        "input": "Web Bridge 转发的 clear_output",
+        "output": "停止播放并丢弃旧播放段",
+        "errors": "清空后的旧音频完成回调不得推进新段。"
+      },
+      {
+        "id": "draft.web.browser-playback-receipts",
+        "kind": "interface",
+        "parent": "web.browser",
+        "module": "web",
+        "label": "浏览器播放回执",
+        "summary": "报告实际开始和排空，用于区别生成完成与播放完成。",
+        "signature": "playback_started / playback_completed",
+        "input": "播放段 outputId、队列和音源状态",
+        "output": "向 Web Bridge 发送开始/结束回执",
+        "errors": "排队、停止或失效的音源不能伪造正常播放完成。"
+      },
+      {
+        "id": "draft.web.host-playback-receipts",
+        "kind": "interface",
+        "parent": "web.host",
+        "module": "web",
+        "label": "核对播放回执",
+        "summary": "Host 按通话和输出段核对来自网页的回执。",
+        "signature": "handlePlaybackStarted / handlePlaybackCompleted",
+        "input": "epoch、outputId、输出完成标记和排空状态",
+        "output": "有效的 onPlaybackStarted / onPlaybackCompleted",
+        "errors": "忽略失配或清空后的输出；队列满足完成条件才通知主流程。"
+      },
+      {
+        "id": "draft.v4.gate",
+        "kind": "interface",
+        "parent": "voice.transport",
+        "module": "voice",
+        "label": "长口述输入接管",
+        "summary": "在普通回复流程前识别草稿成员并抑制自动接话。",
+        "signature": "draftInput / refreshDraftGate",
+        "input": "start、stop、commit、delta、preview、final、failed；itemId 与文本",
+        "output": "已接管标志；同步草稿闸门和待回复状态",
+        "errors": "旧轮已经提交的输入和已退役成员隔离；迟到事件不重复提交。"
+      },
+      {
+        "id": "draft.v4.draft",
+        "kind": "interface",
+        "parent": "live.session",
+        "module": "live",
+        "label": "长口述草稿",
+        "summary": "按钮或“先不要打断我”等主动意图开启；支持中途改口、增量分片和明确说完。 守护进程用 QWEN_LIVE_HARNESS_VOICE_DRAFT 启用此能力。",
+        "signature": "VoiceDraft.observe / begin / command / snapshot",
+        "input": "按代次区分的输入项、稳定/增量转写、草稿命令和毫秒配置",
+        "output": "collecting / checking / review / submitted / discarded、draftId、revision、正文及可选 submissionId",
+        "errors": "引用和转述按正文；断线、转写缺口或最终等待超时转人工核对；有正文且持续静默才触发提交检查。"
+      },
+      {
+        "id": "voice.v1.resume-draft",
+        "kind": "interface",
+        "parent": "voice.transport",
+        "module": "voice",
+        "label": "将整段口述作为一次输入",
+        "summary": "提交草稿后把最终正文作为一个逻辑用户输入送回实时会话。",
+        "signature": "resumeUserText({itemId, text, submittedDraft:true})",
+        "input": "草稿标识、合并文本和 submittedDraft 标志",
+        "output": "用户文本项和一次直接回复请求",
+        "errors": "通话已切换、恢复中或发送失败时保留核对路径。"
+      },
+      {
+        "id": "voice.v1.draft-control",
+        "kind": "interface",
+        "parent": "live.session",
+        "module": "live",
+        "label": "会话级草稿控制",
+        "summary": "处理 get、begin、submit、confirm、discard、restore。",
+        "signature": "LiveSession.voiceDraftControl(command)",
+        "input": "chatId；变更还需 epoch、callId、请求或草稿身份及修订号",
+        "output": "available、当前草稿快照和可用的恢复信息",
+        "errors": "通话不可用或会话归属不符时不开放；旧修订、重复命令和连接恢复按状态处理。"
+      },
+      {
+        "id": "voice.v1.draft-api",
+        "kind": "interface",
+        "parent": "web.bridge",
+        "module": "web",
+        "label": "网页到守护进程的草稿接口",
+        "summary": "桥接网页请求并校验当前通话归属。",
+        "signature": "POST /api/voice-draft → /live/voice-draft",
+        "input": "浏览器会话凭证、chatId、命令和相关身份",
+        "output": "由守护进程返回可用状态或草稿快照",
+        "errors": "无有效通话来源、身份过期或未通过认证时不修改草稿。"
+      },
+      {
+        "id": "draft.v4.card",
+        "kind": "interface",
+        "parent": "web.browser",
+        "module": "web",
+        "label": "通话气泡内的长口述",
+        "summary": "收集中显示不打断提示和响应音量的按钮波形；收尾停止脉动，核对时显示正文。",
+        "signature": "setupVoiceControls / begin-draft",
+        "input": "草稿快照、麦克风电平、用户按钮操作",
+        "output": "开始、提交、确认、放弃或恢复命令；已提交全文可展开",
+        "errors": "控制与当前通话绑定；等待最终转写时禁用重复提交，减少动态效果时提供静态提示。"
+      },
+      {
+        "id": "voice.v1.settings-api",
+        "kind": "interface",
+        "parent": "web.bridge",
+        "module": "web",
+        "label": "语音配置读写",
+        "summary": "读取有效策略与默认值，提交按字段的时间覆写。",
+        "signature": "POST /api/voice-settings → /live/voice-settings",
+        "input": "get 或 save；patch 值为整数毫秒，null 恢复默认",
+        "output": "defaults、overrides、values 和策略开启状态",
+        "errors": "认证、参数校验或写入失败时在页面提示。"
+      },
+      {
+        "id": "draft.v4.timing",
+        "kind": "interface",
+        "parent": "web.daemon",
+        "module": "web",
+        "label": "六项语音时间配置",
+        "summary": "每次新通话读取有效快照；启动策略可覆盖轮次控制默认值。",
+        "signature": "VoiceSettings.snapshot() / save(patch)",
+        "input": "shortWaitMs 350、longWaitMs 1500、observationMs 250、idleHintMs 15000、silenceSubmitMs 90000、finalWaitMs 3000（默认毫秒）",
+        "output": "持久化覆写及下一通话使用的有效值",
+        "errors": "短窗不得大于长窗；停顿提醒可设 0；静默提交范围 10–600 秒；非法键、越界或非整数拒绝。"
+      },
+      {
+        "id": "draft.v4.plan",
+        "kind": "interface",
+        "parent": "back.agent",
+        "module": "backend",
+        "label": "公开任务计划与工具活动",
+        "summary": "工作区执行器报告实际步骤与工具执行状态。",
+        "signature": "update_plan / sessionUpdate",
+        "input": "任务请求、stepId、toolCallId、工具结果",
+        "output": "ACP 计划、工具开始/更新、公开进度与产物线索",
+        "errors": "写入必须取得授权；失败、拒绝或跳过如实报告。"
+      },
+      {
+        "id": "voice.v1.public-activity",
+        "kind": "interface",
+        "parent": "back.acp",
+        "module": "backend",
+        "label": "转换公开活动",
+        "summary": "把可展示的 ACP 更新转换为后台任务事件。",
+        "signature": "publicActivity(update: Record<string, unknown>, jobRef?: string, sessionCwd?: string): Extract<BackendEvent, {type: 'activity'}> | undefined",
+        "input": "公开计划、工具调用、更新和用户可见文本",
+        "output": "经过筛选的计划、工具状态或公开活动",
+        "errors": "不公开内部推理和敏感工具输入；缺少关联时不猜测步骤归属。"
+      },
+      {
+        "id": "draft.v4.ledger",
+        "kind": "interface",
+        "parent": "eff.ledger",
+        "module": "eff",
+        "label": "任务活动台账与快照",
+        "summary": "按任务实例保存计划、活动、工具回执和结果。",
+        "signature": "SubagentsLedger.append / snapshot",
+        "input": "公开事件、更新时刻、stepId、toolCallId、结果/状态",
+        "output": "带 revision 的快照、步骤进度、耗时、最终结果和可用产物",
+        "errors": "同一工具身份更新同一记录；终态回执去重。"
+      },
+      {
+        "id": "voice.v1.tasks-api",
+        "kind": "interface",
+        "parent": "web.bridge",
+        "module": "web",
+        "label": "任务查询、停止与授权",
+        "summary": "网页通过桥接读取列表/详情、停止任务或处理授权。",
+        "signature": "POST /api/tasks",
+        "input": "list、stop 或 permission；按操作附选择项、任务身份或 requestHandle",
+        "output": "任务快照、待授权数据或操作回执",
+        "errors": "请求失效、权限变化或服务不可用时显示状态；不重放历史授权。"
+      },
+      {
+        "id": "voice.v1.task-history",
+        "kind": "interface",
+        "parent": "web.browser",
+        "module": "web",
+        "label": "会话任务的归属与历史",
+        "summary": "按工作区及任务实例保留有主会话的记录，供任务页与会话时间线消费。",
+        "signature": "TaskHistory.collect / removeWhere",
+        "input": "任务 ID、创建时间、chatId、实时快照和浏览器会话表",
+        "output": "按会话归集的实时/历史任务；删除会话时清理其任务记录",
+        "errors": "无归属或已删除的任务不再出现；历史记录不恢复可执行的授权。"
+      },
+      {
+        "id": "web.browser",
+        "kind": "component",
+        "parent": "web",
+        "module": "web",
+        "label": "React 语音工作区",
+        "summary": "挂载通话、会话时间线、任务页、设置和文件预览；助手回复、任务结果和 Markdown 文档使用同一渲染器。"
+      },
+      {
+        "id": "web.taskViews",
+        "kind": "interface",
+        "parent": "web.browser",
+        "module": "web",
+        "label": "任务列表与会话摘要",
+        "summary": "会话内依任务创建时间原位更新。执行中显示当前步骤与动效，终态显示结果；详情页展示计划、工具回执与待授权操作。",
+        "signature": "updateTasks(props)",
+        "input": "同一运行的任务快照、会话归属及一次性授权句柄",
+        "output": "在任务页展示步骤与工具回执，并将摘要投影到会话",
+        "errors": "按任务实例与修订号过滤旧快照；待授权仅列仍可决定的请求，归档任务不能重放授权。"
+      },
+      {
+        "id": "web.timingForm",
+        "kind": "interface",
+        "parent": "web.browser",
+        "module": "web",
+        "label": "语音参数设置",
+        "summary": "六项时间参数附调长、调短的效果说明；支持单项或整页恢复默认。",
+        "signature": "setupTimingForm(api) → load",
+        "input": "服务端默认值、覆写、启用状态及用户编辑值；界面按毫秒或秒显示。",
+        "output": "将编辑转换为整数毫秒 patch；保存提示下一次通话生效。",
+        "errors": "保存失败保留输入，过期读取结果丢弃。"
+      },
+      {
+        "id": "web.save-file",
+        "kind": "interface",
+        "parent": "web.bridge",
+        "module": "web",
+        "label": "POST /api/save-file",
+        "summary": "保存文件预览页编辑的正文，成功后返回新的内容版本。",
+        "signature": "POST /api/save-file → JSON",
+        "input": "工作区、相对路径、预览版本和编辑后的正文",
+        "output": "保存后的路径和新版本",
+        "errors": "版本冲突或写入失败时保留编辑内容"
+      },
+      {
+        "id": "web.chat",
+        "kind": "interface",
+        "parent": "web.bridge",
+        "module": "web",
+        "label": "POST /api/chat",
+        "summary": "把最近消息及所选附件交给当前文字模型，返回会话回复。",
+        "signature": "POST /api/chat → JSON",
+        "input": "最近消息和可选的附件路径、工作区与版本",
+        "output": "所选模型的文字回复",
+        "errors": "凭据缺失、附件变化、输入无效或模型失败时返回错误"
+      },
+      {
+        "id": "voice.v1.input-authority",
+        "kind": "interface",
+        "parent": "live.session",
+        "module": "live",
+        "label": "按用户输入核对任务与授权",
+        "summary": "LiveSession 记录已接受输入的版本与当时可答复的授权。工具派发时核对任务授权是否仍有效，重连后核对原输入可答复的请求。",
+        "signature": "acceptSpeechInput / rememberPermissionInput / taskLeaseCurrent / recoveredPermissionNeedsConfirmation",
+        "input": "输入项 ID、任务输入版本、回复绑定的授权、重连时待处理的请求句柄",
+        "output": "允许继续派发，或返回 user_input_superseded / confirmation_required 回执",
+        "errors": "新的有效用户输入可使旧任务授权失效。恢复前的同意或拒绝不能移用于恢复后新出现的请求。"
+      },
+      {
+        "id": "web.manage-file",
+        "kind": "interface",
+        "parent": "web.bridge",
+        "module": "web",
+        "label": "文件重命名与删除",
+        "summary": "处理用户在文件列表确认的单次操作。",
+        "signature": "POST /api/manage-file",
+        "input": "工作区、相对路径、已读取版本、操作和重命名目标",
+        "output": "删除确认或新的同目录路径",
+        "errors": "工作区失效、版本变化、目标冲突或路径越界时返回错误。"
+      },
+      {
+        "id": "web.delete-chat-attachments",
+        "kind": "interface",
+        "parent": "web.bridge",
+        "module": "web",
+        "label": "删除会话附件",
+        "summary": "清除会话专属附件目录，记录已删除状态并拒绝迟到的附件上传。",
+        "signature": "POST /api/delete-chat-attachments",
+        "input": "当前工作区 root 和会话 chat 标识",
+        "output": "确认附件清理完成后返回 deleted=true",
+        "errors": "拒绝无效会话标识、过期工作区或越界目录。清理失败可重试。"
+      },
+      {
+        "id": "web.deleteChat",
+        "kind": "interface",
+        "parent": "web.browser",
+        "module": "web",
+        "label": "删除会话并清理关联记录",
+        "summary": "用户确认后按工作区和会话 ID 请求清理附件。收到成功回执后再移除关联任务历史和本地会话。",
+        "signature": "editChat(c, 'delete')",
+        "input": "会话 c、当前工作区 root、用户确认",
+        "output": "清理该会话的附件、关联任务历史和本地会话记录",
+        "errors": "用户取消或无法离开通话时提前退出。附件清理失败时提示并保留会话与任务历史。"
+      }
+    ],
+    "edges": [
+      {
+        "id": "voice.v1.edge.1",
+        "source": "draft.voice.speech-bounds",
+        "target": "live.callbacks",
+        "type": "Emits / Handles",
+        "label": "发声起止回调"
+      },
+      {
+        "id": "voice.v1.edge.2",
+        "source": "draft.voice.transcript-partial",
+        "target": "live.callbacks",
+        "type": "Emits / Handles",
+        "label": "普通输入实时转写"
+      },
+      {
+        "id": "voice.v1.edge.3",
+        "source": "draft.voice.transcript-final",
+        "target": "live.callbacks",
+        "type": "Emits / Handles",
+        "label": "普通输入最终转写或迟到观察"
+      },
+      {
+        "id": "voice.v1.edge.4",
+        "source": "voice.v1.tracker",
+        "target": "draft.voice.input-info",
+        "type": "Emits / Handles",
+        "label": "发布同一输入的修订"
+      },
+      {
+        "id": "voice.v1.edge.5",
+        "source": "voice.v1.controller",
+        "target": "prop.turn",
+        "type": "Emits / Handles",
+        "label": "发布暂定或确认的插话意图"
+      },
+      {
+        "id": "voice.v1.edge.6",
+        "source": "voice.v1.controller",
+        "target": "draft.live.turn-state",
+        "type": "Emits / Handles",
+        "label": "包装身份并交付轮次结论"
+      },
+      {
+        "id": "voice.v1.edge.7",
+        "source": "prop.turn",
+        "target": "draft.live.confirm-interruption",
+        "type": "Emits / Handles",
+        "label": "LiveSession 核对播放目标"
+      },
+      {
+        "id": "voice.v1.edge.8",
+        "source": "prop.turn",
+        "target": "voice.v1.cancel-target",
+        "type": "Emits / Handles",
+        "label": "传输层核对生成目标"
+      },
+      {
+        "id": "voice.v1.edge.9",
+        "source": "draft.web.host-clear-output",
+        "target": "web.bridge",
+        "type": "Emits / Handles",
+        "label": "Host 清空通知"
+      },
+      {
+        "id": "voice.v1.edge.10",
+        "source": "web.bridge",
+        "target": "draft.web.browser-clear-output",
+        "type": "Emits / Handles",
+        "label": "转发 clear_output"
+      },
+      {
+        "id": "voice.v1.edge.11",
+        "source": "draft.web.browser-playback-receipts",
+        "target": "web.bridge",
+        "type": "Emits / Handles",
+        "label": "网页报告播放开始或排空"
+      },
+      {
+        "id": "voice.v1.edge.12",
+        "source": "web.bridge",
+        "target": "draft.web.host-playback-receipts",
+        "type": "Emits / Handles",
+        "label": "桥接带身份的回执"
+      },
+      {
+        "id": "voice.v1.edge.13",
+        "source": "draft.web.host-playback-receipts",
+        "target": "live.playStarted",
+        "type": "Emits / Handles",
+        "label": "有效播放开始"
+      },
+      {
+        "id": "voice.v1.edge.14",
+        "source": "draft.web.host-playback-receipts",
+        "target": "live.playCompleted",
+        "type": "Emits / Handles",
+        "label": "有效播放完成"
+      },
+      {
+        "id": "voice.v1.edge.15",
+        "source": "live.callbacks",
+        "target": "voice.v1.tracker",
+        "type": "Calls",
+        "label": "boundary / partial / final / endInput"
+      },
+      {
+        "id": "voice.v1.edge.16",
+        "source": "voice.v1.tracker",
+        "target": "draft.voice.features",
+        "type": "Calls",
+        "label": "对齐后异步计算特征"
+      },
+      {
+        "id": "voice.v1.edge.17",
+        "source": "draft.voice.context",
+        "target": "voice.v1.tracker",
+        "type": "Calls",
+        "label": "按三元身份查询最终上下文"
+      },
+      {
+        "id": "voice.v1.edge.18",
+        "source": "draft.voice.input-commit",
+        "target": "voice.v1.controller",
+        "type": "Calls",
+        "label": "提交有效 itemId"
+      },
+      {
+        "id": "voice.v1.edge.19",
+        "source": "voice.v1.controller",
+        "target": "draft.voice.turn-end",
+        "type": "Calls",
+        "label": "用当轮状态评估停顿窗口"
+      },
+      {
+        "id": "voice.v1.edge.20",
+        "source": "draft.live.confirm-interruption",
+        "target": "draft.web.host-clear-output",
+        "type": "Calls",
+        "label": "命中仍在播放的目标时清空"
+      },
+      {
+        "id": "voice.v1.edge.21",
+        "source": "draft.v4.card",
+        "target": "voice.v1.draft-api",
+        "type": "Calls",
+        "label": "轮询草稿并发送显式操作"
+      },
+      {
+        "id": "voice.v1.edge.22",
+        "source": "voice.v1.draft-control",
+        "target": "draft.v4.draft",
+        "type": "Calls",
+        "label": "按命令读取快照或改变状态"
+      },
+      {
+        "id": "voice.v1.edge.23",
+        "source": "voice.v1.resume-draft",
+        "target": "draft.voice.reply-create",
+        "type": "Calls",
+        "label": "送入整段文本后请求直接回复"
+      },
+      {
+        "id": "voice.v1.edge.24",
+        "source": "web.timingForm",
+        "target": "voice.v1.settings-api",
+        "type": "Calls",
+        "label": "读取策略或保存参数"
+      },
+      {
+        "id": "voice.v1.edge.25",
+        "source": "web.taskViews",
+        "target": "voice.v1.tasks-api",
+        "type": "Data Flow",
+        "label": "将查看详情、授权或停止操作交给页面控制器"
+      },
+      {
+        "id": "voice.v1.edge.26",
+        "source": "live.audio",
+        "target": "voice.v1.audio-window",
+        "type": "Data Flow",
+        "label": "realtime 保存可取用的当前代次音频"
+      },
+      {
+        "id": "voice.v1.edge.27",
+        "source": "voice.v1.audio-window",
+        "target": "draft.voice.features",
+        "type": "Data Flow",
+        "label": "提供对齐 PCM16 样本"
+      },
+      {
+        "id": "voice.v1.edge.28",
+        "source": "draft.voice.features",
+        "target": "voice.v1.tracker",
+        "type": "Data Flow",
+        "label": "将运算结果归并到原输入"
+      },
+      {
+        "id": "voice.v1.edge.29",
+        "source": "draft.voice.turn-end",
+        "target": "voice.v1.controller",
+        "type": "Data Flow",
+        "label": "返回 wait、ready 或 abandon"
+      },
+      {
+        "id": "voice.v1.edge.30",
+        "source": "voice.v1.controller",
+        "target": "draft.voice.reply-bind",
+        "type": "Data Flow",
+        "label": "ready 且已有直接回复时尝试绑定"
+      },
+      {
+        "id": "voice.v1.edge.31",
+        "source": "voice.v1.controller",
+        "target": "draft.voice.reply-create",
+        "type": "Data Flow",
+        "label": "ready 且需新建回复时排队"
+      },
+      {
+        "id": "voice.v1.edge.32",
+        "source": "voice.transport",
+        "target": "voice.v1.controller",
+        "type": "Data Flow",
+        "label": "发声起止和 ASR 在传输层直接更新当前候选"
+      },
+      {
+        "id": "voice.v1.edge.33",
+        "source": "voice.transport",
+        "target": "draft.v4.gate",
+        "type": "Data Flow",
+        "label": "普通 ASR 回调之前先检查草稿归属"
+      },
+      {
+        "id": "voice.v1.edge.34",
+        "source": "draft.v4.gate",
+        "target": "draft.v4.draft",
+        "type": "Data Flow",
+        "label": "onDraftInput 转交代次、输入项及正文"
+      },
+      {
+        "id": "voice.v1.edge.35",
+        "source": "draft.v4.draft",
+        "target": "draft.v4.gate",
+        "type": "Data Flow",
+        "label": "活动状态抑制普通接话"
+      },
+      {
+        "id": "voice.v1.edge.36",
+        "source": "draft.v4.draft",
+        "target": "voice.v1.resume-draft",
+        "type": "Data Flow",
+        "label": "以草稿 ID 交付一次提交的全文"
+      },
+      {
+        "id": "voice.v1.edge.37",
+        "source": "voice.v1.draft-api",
+        "target": "voice.v1.draft-control",
+        "type": "Data Flow",
+        "label": "守护进程分派给当前 LiveSession"
+      },
+      {
+        "id": "voice.v1.edge.38",
+        "source": "voice.v1.settings-api",
+        "target": "draft.v4.timing",
+        "type": "Data Flow",
+        "label": "守护进程执行 snapshot / save"
+      },
+      {
+        "id": "voice.v1.edge.39",
+        "source": "draft.v4.timing",
+        "target": "voice.v1.controller",
+        "type": "Data Flow",
+        "label": "通话创建时取轮次和观察窗口"
+      },
+      {
+        "id": "voice.v1.edge.40",
+        "source": "draft.v4.timing",
+        "target": "draft.v4.draft",
+        "type": "Data Flow",
+        "label": "通话创建时取提醒、静默提交及最终等待时限"
+      },
+      {
+        "id": "voice.v1.edge.41",
+        "source": "live.handoff",
+        "target": "draft.v4.plan",
+        "type": "Data Flow",
+        "label": "经配置的后台适配器启动工作区任务"
+      },
+      {
+        "id": "voice.v1.edge.42",
+        "source": "draft.v4.plan",
+        "target": "voice.v1.public-activity",
+        "type": "Data Flow",
+        "label": "公开 ACP 更新送交适配器"
+      },
+      {
+        "id": "voice.v1.edge.43",
+        "source": "voice.v1.public-activity",
+        "target": "draft.v4.ledger",
+        "type": "Data Flow",
+        "label": "经后台事件处理写入台账"
+      },
+      {
+        "id": "voice.v1.edge.44",
+        "source": "draft.v4.ledger",
+        "target": "voice.v1.tasks-api",
+        "type": "Data Flow",
+        "label": "列表和详情使用守护进程快照"
+      },
+      {
+        "id": "voice.v1.edge.45",
+        "source": "voice.v1.tasks-api",
+        "target": "voice.v1.task-history",
+        "type": "Data Flow",
+        "label": "网页归集带会话来源的任务"
+      },
+      {
+        "id": "voice.v1.edge.46",
+        "source": "voice.v1.task-history",
+        "target": "web.taskViews",
+        "type": "Data Flow",
+        "label": "向 React 提供带会话与时间的任务记录"
+      },
+      {
+        "id": "voice.v1.edge.47",
+        "source": "web.deleteChat",
+        "target": "voice.v1.task-history",
+        "type": "Calls",
+        "label": "附件清理成功后调用 removeWhere 移除本会话任务历史"
+      },
+      {
+        "id": "voice.v1.edge.read-speech",
+        "source": "live.callbacks",
+        "target": "draft.voice.context",
+        "type": "Calls",
+        "label": "正常最终转写按输入身份取正文并更新会话字幕"
+      },
+      {
+        "id": "voice.v1.edge.confirmed-input",
+        "source": "draft.live.confirm-interruption",
+        "target": "voice.v1.input-authority",
+        "type": "Calls",
+        "label": "接纳确认的新话轮时更新输入版本及授权目标"
+      },
+      {
+        "id": "voice.v1.edge.input-check",
+        "source": "live.dispatch",
+        "target": "voice.v1.input-authority",
+        "type": "Calls",
+        "label": "派发前检查任务授权及重连后的请求归属"
+      },
+      {
+        "id": "voice.v1.edge.task-route",
+        "source": "web.browser",
+        "target": "voice.v1.tasks-api",
+        "type": "Calls",
+        "label": "loadTaskPage 和工作区动作读取快照、停止任务或答复授权"
+      },
+      {
+        "id": "web-browser-taskViews",
+        "source": "web.browser",
+        "target": "web.taskViews",
+        "type": "Calls",
+        "label": "任务列表与会话摘要"
+      },
+      {
+        "id": "web-browser-timingForm",
+        "source": "web.browser",
+        "target": "web.timingForm",
+        "type": "Calls",
+        "label": "语音参数设置"
+      },
+      {
+        "id": "web-ui-manage-file",
+        "source": "web.browser",
+        "target": "web.manage-file",
+        "type": "Calls",
+        "label": "提交确认后的文件操作"
+      },
+      {
+        "id": "web-ui-delete-chat-attachments",
+        "source": "web.deleteChat",
+        "target": "web.delete-chat-attachments",
+        "type": "Calls",
+        "label": "请求 POST /api/delete-chat-attachments 并等待回执"
+      },
+      {
+        "id": "web.ui-delete-chat-action",
+        "source": "web.browser",
+        "target": "web.deleteChat",
+        "type": "Calls",
+        "label": "从会话菜单选择删除"
+      },
+      {
+        "id": "web.chat-attachments-cleaned",
+        "source": "web.delete-chat-attachments",
+        "target": "web.deleteChat",
+        "type": "Data Flow",
+        "label": "返回清理结果，失败则保留会话及任务历史"
+      }
+    ],
+    "removedNodes": [],
+    "removedEdges": [
+      "e090",
+      "e091"
+    ]
+  }
+}
