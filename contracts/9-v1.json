@@ -1,0 +1,183 @@
+{
+  "schema": 1,
+  "issue": 9,
+  "version": 1,
+  "state": "approved",
+  "title": "[模拟方案] 跨会话记忆管理",
+  "draft": {
+    "schema": 1,
+    "baseCommit": "6461fe47cfc28056814583e5a53f6eb5fca65407",
+    "nodes": [
+      {
+        "id": "mem.action",
+        "kind": "interface",
+        "parent": "memory.service",
+        "module": "memory",
+        "label": "applyAction",
+        "summary": "沿用库级管理入口，拟增加指定旧会话的历史召回暂停／恢复。",
+        "signature": "applyAction(action: LiveMemoryAction | RecallAction): LiveMemoryStateV1（拟议）",
+        "input": "保留现有动作。拟增 { action: 'set_session_recall', libraryId, sessionId, enabled }，作用于指定库的已结束会话。",
+        "output": "保留原有状态字段。召回动作返回实际状态和结果（已更新／无变更／目标不存在／失败），以存储提交为准。",
+        "errors": "沿用现有关闭与锁定规则。库或会话无效、会话仍活跃、持久化失败时不改变召回状态。重复请求返回当前状态。"
+      },
+      {
+        "id": "mem.retrieve",
+        "kind": "interface",
+        "parent": "memory.session",
+        "module": "memory",
+        "label": "retrieve",
+        "summary": "保留会话检索入口，拟支持在当前库中按指定历史会话查找。",
+        "signature": "retrieve({ query, source?, timeRange?, sessionIds? }): Promise<MemoryToolResult>（拟议）",
+        "input": "保留现有参数。可选 sessionIds: readonly string[]，用于 source='dialogue'。省略时按原有会话范围查询。",
+        "output": "保留 receipt、changed、count。命中正文仍写入会话的待注入检索内容，并附来源会话。",
+        "errors": "参数非法时返回失败回执。空数组返回零命中。暂停召回、库外或无匹配的会话不产生结果。关闭后不采用结果。"
+      },
+      {
+        "id": "mem.perform",
+        "kind": "interface",
+        "parent": "memory.session",
+        "module": "memory",
+        "label": "performRetrieve",
+        "summary": "按来源分派检索，把指定会话范围转交给对话检索。",
+        "signature": "performRetrieve({ query, source?, timeRange?, sessionIds? }): Promise<MemoryToolResult>（拟议，私有）",
+        "input": "接收 retrieve() 转交的查询及可选会话范围，检索沿用当前 MemorySession 绑定的库。",
+        "output": "把 sessionIds 传给 searchDialogue()，沿用回执和待注入内容更新。",
+        "errors": "沿用检索失败回执和关闭检查。指定会话范围后不补入范围外的本轮片段。"
+      },
+      {
+        "id": "mem.searchDialogue",
+        "kind": "interface",
+        "parent": "memory.retrieval",
+        "module": "memory",
+        "label": "searchDialogue",
+        "summary": "查询历史片段，全文和向量候选都遵守会话范围及历史召回开关。",
+        "signature": "searchDialogue(options: SearchOptions & { tailTurns?: readonly RenderTurn[]; sessionIds?: readonly string[] }): Promise<RetrievalResult<DialogueSegmentRow>>（拟议）",
+        "input": "沿用现有数据库、查询、时间范围、索引和尾部轮次等参数。拟增 sessionIds，读取同库中各会话的历史召回状态。",
+        "output": "返回满足会话过滤的片段，保留来源会话和原有结果结构。",
+        "errors": "过滤暂停召回和范围外的会话。显式范围与当前会话尾部内容不匹配时不补入尾部内容。异常交由 performRetrieve() 处理。"
+      },
+      {
+        "id": "draft.2abe4beb-f3db-4593-9bdc-d9a8cf23f729",
+        "kind": "interface",
+        "parent": "draft.bec23835-ae0c-49c3-baaf-1a800b8536b5",
+        "module": "memory",
+        "label": "listLibrarySessions",
+        "summary": "现有方法读取指定库的 library_sessions 并返回整表，按 last_seen_at 倒序、session_id 升序排列。M1 拟为管理入口增加分页和召回状态。已有定义：memory/store.ts:342（2363e17）。现有版本未找到调用点；拟议调用方为 MemoryService.listSessions()。",
+        "signature": "listLibrarySessions(id: string): Array<Record<string, unknown>> （现有）listLibrarySessions(libraryId: string, page: { cursor?: string; limit?: number }): MemorySessionPage （拟议分页重载）",
+        "input": "必填 libraryId。拟议分页参数包含可选 cursor（上页最后一项的 lastSeenAt 和 sessionId）及 limit。无 cursor 从第一页开始，按原有稳定排序翻页。",
+        "output": "拟议返回 { sessions: Array<{ sessionId: string; lastSeenAt: string; recallEnabled: boolean }>; nextCursor?: string }。没有下一页时省略 nextCursor。暂停召回的会话继续出现在列表。返回值由拟议的 MemoryService.listSessions() 读取并交还调用方。",
+        "errors": "无效库、游标或页大小与空列表区分。读库失败报告读取错误；同步读取不提供取消信号。"
+      },
+      {
+        "id": "draft.05d3cc08-33cc-4c20-82b9-902ad25a856e",
+        "kind": "interface",
+        "parent": "draft.bec23835-ae0c-49c3-baaf-1a800b8536b5",
+        "module": "memory",
+        "label": "setSessionRecall",
+        "summary": "拟议新增的存储方法，只持久化旧会话是否参与历史对话检索。调用方为拟扩展的 MemoryService.applyAction()；searchDialogue() 通过同库 SQLite 读取开关。现有对照：memory/store.ts:350 的 deactivateSession() 还会停用环境观察，:396 是对应恢复路径。",
+        "signature": "setSessionRecall(libraryId: string, sessionId: string, enabled: boolean): { status: 'updated' | 'unchanged'; enabled: boolean } | { status: 'not_found' | 'failed' } （拟议）",
+        "input": "必填库 ID、会话 ID、布尔开关。管理入口先确认库有效及目标已结束，存储层按指定库与会话 ID 定位持久记录。",
+        "output": "提交独立的历史召回标记后返回 updated 和实际状态；状态相同返回 unchanged。管理入口用结果生成回执，全文与向量查询以及会话列表读取同一已提交标记。",
+        "errors": "目标不存在返回 not_found，写入失败回滚并返回 failed。开关不改原始对话、环境观察和长期条目的状态。事务同步完成，无异步取消。"
+      },
+      {
+        "id": "draft.a2cfe72b-66e8-4028-9077-5a9e31ae2f3d",
+        "kind": "interface",
+        "parent": "memory.service",
+        "module": "memory",
+        "label": "listSessions",
+        "summary": "拟议的记忆模块会话目录入口，供运行时调用方分页查询。调用 MemoryStore.listLibrarySessions()，并把结果直接返回给请求方。调用方的外部接线由接口评审确认。",
+        "signature": "listSessions(libraryId: string, page?: { cursor?: string; limit?: number }): MemorySessionPage （拟议）",
+        "input": "当前个人库 ID 与可选分页条件。MemoryService 校验库并传入分页选项。",
+        "output": "会话页及可选下一页游标，字段与 MemoryStore 的分页结果一致，可据 sessionId 发起暂停／恢复操作。",
+        "errors": "区分库不存在、分页参数非法、存储异常和正常空页。同步读取，无异步取消。"
+      },
+      {
+        "id": "draft.bec23835-ae0c-49c3-baaf-1a800b8536b5",
+        "kind": "component",
+        "parent": "memory",
+        "module": "memory",
+        "label": "MemoryStore",
+        "summary": "现有 SQLite 存储组件，由 MemoryService 创建，并在 attach() 时交给 MemorySession。M1 拟扩展会话分页查询与历史召回开关。已有源码（2363e17）：memory/store.ts:89（类）、:96（构造）、:291（数据库入口）、:342（全量会话查询）；memory/service.ts:120、:243（创建及交付）；memory/session.ts:115（打开当前会话所绑定的库）。",
+        "signature": "constructor(options: { directory: string; defaultId: string; log?: MemoryLogger })",
+        "input": "构造时接收记忆库根目录 directory、默认库标识 defaultId、可选日志函数 log。具体库或会话 ID 由调用者在调用 database()、listLibrarySessions() 或拟议 setSessionRecall() 时传入。",
+        "output": "构造得到 MemoryStore 实例，持有每库 SQLite 连接。MemoryService 保存该实例并交给 MemorySession；后者按 libraryId 取得数据库连接。列表及召回操作分别见子接口。",
+        "errors": "现有：无效库 ID、库目录不可用、存储已关闭或 SQLite 打开／迁移失败均报告错误。构造与现有存储调用同步执行。拟议：召回状态写入失败时回滚，按 setSessionRecall() 的结果返回。"
+      }
+    ],
+    "edges": [
+      {
+        "id": "e014",
+        "source": "mem.retrieve",
+        "target": "mem.perform",
+        "type": "Calls",
+        "label": "进入检索执行时传递 query、source、timeRange 及可选 sessionIds，仍使用当前会话绑定的库。"
+      },
+      {
+        "id": "e015",
+        "source": "mem.perform",
+        "target": "mem.searchDialogue",
+        "type": "Calls",
+        "label": "在 dialogue 分支把会话范围传给历史检索，由后者统一过滤全文和向量候选。"
+      },
+      {
+        "id": "draft.3e12a128-6400-41c9-b7d2-d7fea770727d",
+        "source": "mem.action",
+        "target": "draft.05d3cc08-33cc-4c20-82b9-902ad25a856e",
+        "type": "Calls",
+        "label": "拟议：校验指定库和已结束会话后，保存历史召回开关，按提交结果生成动作回执。"
+      },
+      {
+        "id": "draft.f2a8e91d-0699-4413-ba5b-4ed65657b8f2",
+        "source": "draft.05d3cc08-33cc-4c20-82b9-902ad25a856e",
+        "target": "mem.searchDialogue",
+        "type": "Data Flow",
+        "label": "拟议：历史检索通过同库 SQLite 读取已提交的召回开关，只纳入允许召回的会话。此关系经存储传递。"
+      },
+      {
+        "id": "draft.83d339f6-69ba-453e-840a-e0e2b19bbb64",
+        "source": "memory.service",
+        "target": "draft.bec23835-ae0c-49c3-baaf-1a800b8536b5",
+        "type": "Calls",
+        "label": "已有创建关系：MemoryService 构造时传入记忆目录、默认库标识和日志函数（memory/service.ts:120）。"
+      },
+      {
+        "id": "draft.61070d4c-e88f-421f-80f6-9c63cf41952d",
+        "source": "draft.bec23835-ae0c-49c3-baaf-1a800b8536b5",
+        "target": "memory.session",
+        "type": "Data Flow",
+        "label": "已有实例交付：MemoryService.attach() 将 store 和 libraryId 一起交给 MemorySession；会话据此取得 SQLite 连接（memory/service.ts:243，memory/session.ts:115）。"
+      },
+      {
+        "id": "draft.0e198bdb-0146-4e98-a172-d01a7076fd57",
+        "source": "draft.a2cfe72b-66e8-4028-9077-5a9e31ae2f3d",
+        "target": "draft.2abe4beb-f3db-4593-9bdc-d9a8cf23f729",
+        "type": "Calls",
+        "label": "拟议：MemoryService 将库 ID 和分页选项传给 MemoryStore，以稳定顺序读取一页库内会话。"
+      },
+      {
+        "id": "draft.bf1b35ec-0bb4-4048-a08f-355a76a923cf",
+        "source": "draft.2abe4beb-f3db-4593-9bdc-d9a8cf23f729",
+        "target": "draft.a2cfe72b-66e8-4028-9077-5a9e31ae2f3d",
+        "type": "Data Flow",
+        "label": "拟议：把会话页和下一页游标交回运行时的列表入口，供原调用方使用。"
+      },
+      {
+        "id": "draft.08f43979-3afc-470c-beff-8bb1ecfa484c",
+        "source": "draft.05d3cc08-33cc-4c20-82b9-902ad25a856e",
+        "target": "mem.action",
+        "type": "Data Flow",
+        "label": "拟议：把已提交、无变化、目标不存在或失败的存储结果交给入口，生成对应的管理回执。"
+      },
+      {
+        "id": "draft.23a6ee82-cc09-4ad0-ba2e-ca4d569e83be",
+        "source": "draft.05d3cc08-33cc-4c20-82b9-902ad25a856e",
+        "target": "draft.2abe4beb-f3db-4593-9bdc-d9a8cf23f729",
+        "type": "Data Flow",
+        "label": "拟议：分页查询读取同一 SQLite 中已提交的历史召回标记，列表可显示该状态。"
+      }
+    ],
+    "removedNodes": [],
+    "removedEdges": []
+  }
+}
