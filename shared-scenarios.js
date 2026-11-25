@@ -569,6 +569,8 @@
       (v) => JSON.stringify(v.draft) === JSON.stringify(draft),
     );
     if (match) {
+      if (window.teamContracts?.isVerified?.(issue.number, match.version))
+        return { state: 'verified', label: '绿色 · 已复测 v' + match.version };
       const historical = match.version !== versions.at(-1).version;
       return {
         state: 'approved',
@@ -644,8 +646,16 @@
                 return;
               const approved = document.createElement('button');
               approved.dataset.team = String(issue.number);
-              approved.className = 'rv-badge rv-approved';
-              approved.textContent = '紫色团队约定 v' + versions.at(-1).version;
+              const version = versions.at(-1).version;
+              const verified = window.teamContracts.isVerified(
+                issue.number,
+                version,
+              );
+              approved.className = verified
+                ? 'rv-badge rv-verified'
+                : 'rv-badge rv-approved';
+              approved.textContent =
+                (verified ? '绿色已复测 v' : '紫色团队约定 v') + version;
               approved.onclick = () => {
                 panel.close();
                 window.teamContracts.openIssue(issue.number);
@@ -823,8 +833,16 @@
           if (latest?.state === 'withdrawn') {
             button.textContent = '查看撤下记录';
           } else if (latest) {
-            button.textContent = '查看紫色团队约定 v' + latest.version;
-            button.className = 'rv-badge rv-approved';
+            const verified = window.teamContracts.isVerified(
+              number,
+              latest.version,
+            );
+            button.textContent =
+              (verified ? '查看绿色复测记录 v' : '查看紫色团队约定 v') +
+              latest.version;
+            button.className = verified
+              ? 'rv-badge rv-verified'
+              : 'rv-badge rv-approved';
           }
           review = status;
         })

@@ -134,10 +134,13 @@
     }
     return { latest, archived };
   }
+  const isVerified = (issue, version) =>
+    Number.isInteger(version) &&
+    window.MAP_VERIFIED_PROPOSALS?.[issue] === version;
   function directory() {
     const token = screen(
       '团队约定',
-      '<p>全组共用的紫色版本。点开可看约定的接口和连线。</p><div id="teamList">正在读取…</div><label>按共享方案编号查看<input id="teamNumber" type="number" min="1"></label><button id="teamFind">查看团队约定</button>',
+      '<p>紫色表示已约定，绿色表示已在代码基线复测。</p><div id="teamList">正在读取…</div><label>按共享方案编号查看<input id="teamNumber" type="number" min="1"></label><button id="teamFind">查看团队约定</button>',
     );
     $('teamFind').onclick = () => openIssue(Number($('teamNumber').value));
     (async () => {
@@ -167,11 +170,17 @@
       for (const entry of entries.filter(Boolean)) {
         const [issue, version] = entry;
         const button = document.createElement('button');
-        if (version) button.className = 'rv-badge rv-approved';
+        const verified = isVerified(issue, version);
+        if (version)
+          button.className = verified
+            ? 'rv-badge rv-verified'
+            : 'rv-badge rv-approved';
         button.textContent =
           '#' +
           issue +
-          (version ? ' · 紫色 · 已约定 v' + version : ' · 重新核对状态');
+          (version
+            ? (verified ? ' · 绿色 · 已复测 v' : ' · 紫色 · 已约定 v') + version
+            : ' · 重新核对状态');
         button.onclick = () => openIssue(issue);
         $('teamList').append(button);
       }
@@ -219,11 +228,14 @@
       }
       function show(v) {
         const active = v === versions.at(-1);
+        const verified = isVerified(issue, v.version);
         screen(
           '团队约定 #' + issue,
-          '<p class="rv-badge rv-approved">' +
+          '<p class="rv-badge rv-' +
+            (verified ? 'verified' : 'approved') +
+            '">' +
             (active ? '当前约定' : '历史约定') +
-            ' · 紫色 v' +
+            (verified ? ' · 绿色 · 已复测 v' : ' · 紫色 v') +
             v.version +
             '</p><h3>' +
             esc(v.title) +
@@ -237,7 +249,9 @@
             ' 个节点、' +
             v.draft.removedEdges.length +
             ' 条连线。</p>' +
-            '<div class="lab-row"><button id="teamGraph">看紫色接口图</button><button id="teamDiff">查看修改前后</button><button id="teamImport">复制约定到本地审核</button></div>' +
+            '<div class="lab-row"><button id="teamGraph">' +
+            (verified ? '查看已复测的基线图' : '看紫色接口图') +
+            '</button><button id="teamDiff">查看修改前后</button><button id="teamImport">复制约定到本地审核</button></div>' +
             (active ? '<button id="teamWithdraw">撤下团队约定</button>' : '') +
             '<label>版本<select id="teamVersion">' +
             versions
@@ -310,6 +324,20 @@
           show(versions[Number($('teamVersion').value) - 1]);
         $('teamGraph').onclick = () => {
           try {
+            if (verified) {
+              const url = new URL(location.href);
+              url.searchParams.delete('baseline');
+              url.hash = '';
+              panel.close();
+              if (
+                wb.getBase().meta.referenceCommit === window.MAP_CURRENT_BASE
+              ) {
+                $('labBase').click();
+              } else {
+                location.assign(url.href);
+              }
+              return;
+            }
             preview(v);
           } catch (e) {
             $('teamStatus').textContent = e.message;
@@ -466,5 +494,12 @@
   }
   window.addEventListener('hashchange', deepLink);
   deepLink();
-  window.teamContracts = { openIssue, publish, history, catalog, directory };
+  window.teamContracts = {
+    openIssue,
+    publish,
+    history,
+    catalog,
+    directory,
+    isVerified,
+  };
 })();
