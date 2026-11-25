@@ -495,6 +495,7 @@
   window.addEventListener('hashchange', deepLink);
   deepLink();
   window.teamContracts = {
+    record,
     openIssue,
     publish,
     history,

@@ -48,8 +48,8 @@
     updatePending = false,
     sharedContext = null;
   const id = () => 'draft.' + crypto.randomUUID();
-  function validate(d) {
-    if (!d || d.schema !== 1 || d.baseCommit !== base.meta.referenceCommit)
+  function validate(d, graph = base) {
+    if (!d || d.schema !== 1 || d.baseCommit !== graph.meta.referenceCommit)
       throw Error('草稿基线版本不一致，不能直接覆盖当前图。');
     for (const k of ['nodes', 'edges', 'removedNodes', 'removedEdges'])
       if (!Array.isArray(d[k]) || d[k].length > 2000)
@@ -67,7 +67,7 @@
     for (const e of d.edges) {
       if (
         !/^[\w.-]{1,120}$/.test(e.id) ||
-        !base.meta.relations.includes(e.type)
+        !graph.meta.relations.includes(e.type)
       )
         throw Error('连线类型或ID无效');
       for (const v of Object.values(e))
@@ -78,9 +78,9 @@
       if (new Set(d[k].map((x) => x.id)).size !== d[k].length)
         throw Error('草稿包含重复ID');
   }
-  function scenario(d = draft) {
-    validate(d);
-    const g = structuredClone(base),
+  function scenario(d = draft, graph = base) {
+    validate(d, graph);
+    const g = structuredClone(graph),
       nodes = new Map(g.nodes.map((n) => [n.id, n]));
     for (const n of d.nodes) {
       const original = nodes.get(n.id);

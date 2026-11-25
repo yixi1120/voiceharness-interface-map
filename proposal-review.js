@@ -541,6 +541,17 @@
   $('labShared').after(button);
   button.onclick = directory;
   window.interfaceReview = {
+    ownersFor(commit) {
+      try {
+        return (
+          JSON.parse(
+            localStorage.getItem('vh-local-review-v1:' + commit) || '{}',
+          )?.owners || {}
+        );
+      } catch {
+        return {};
+      }
+    },
     start,
     importContract(record) {
       const state = read();
