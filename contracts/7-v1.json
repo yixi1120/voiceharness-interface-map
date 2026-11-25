@@ -1,0 +1,251 @@
+{
+  "schema": 1,
+  "issue": 7,
+  "version": 1,
+  "state": "approved",
+  "title": "[模拟方案] 工具授权与工作区工具扩展：三态会话授权表、L1/L2 双层审查、实时跨端同步与差异化审批 UI",
+  "draft": {
+    "schema": 1,
+    "baseCommit": "957c0479c85566401c0add7ebcb1f02aad27d1d7",
+    "nodes": [
+      {
+        "id": "safe.store",
+        "kind": "component",
+        "parent": "safety",
+        "module": "safety",
+        "label": "SessionAuthorizationStore",
+        "summary": "会话级三态结构化授权表（allow / ask / deny）状态容器：序列化语音与 UI 权限变更、提供 mutationSeq 防并发覆盖保护，并在快照变更时触发跨端同步与越权任务自动作废。",
+        "signature": "class SessionAuthorizationStore",
+        "input": "SpeechInputContext | grantId: string | policy: (\"write_ask\" | \"web_deny\", enabled: boolean)",
+        "output": "AuthorizationSnapshot { version, task, grants, userInput, updatedAt }",
+        "errors": "模型调用超时或返回非法 JSON 时，在严格模式（handoff 前）抛错阻断任务提交；后台观察模式保留原快照"
+      },
+      {
+        "id": "safe.updateAuthorization",
+        "kind": "interface",
+        "parent": "safe.store",
+        "module": "safety",
+        "label": "updateAuthorization",
+        "summary": "基于用户最终语音转写更新三态授权表（稳定 ID g1..gN），内置 sanitizeModelDenyGrant（硬代码拦截模型幻觉通配 deny *）、isOneShotActionCancellation（单次取消防误伤为永久禁令）、以及常驻 ask/deny 下的冲突 allow 抑制。",
+        "signature": "updateAuthorization(ask: AskAuthorizationModel | undefined, userInput: string, signal: AbortSignal, previous?: AuthorizationSnapshot): Promise<AuthorizationSnapshot>",
+        "input": "userInput: string, previous?: AuthorizationSnapshot",
+        "output": "AuthorizationSnapshot",
+        "errors": "缺少有效转写、授权条目超上限（24 条）或模型返回非法结构时抛错"
+      },
+      {
+        "id": "safe.reviewAction",
+        "kind": "interface",
+        "parent": "safe.store",
+        "module": "safety",
+        "label": "reviewAction",
+        "summary": "工具执行前双层审查：L1 确定性规则（deny 优先、密钥/私钥外泄拦截、delete_file 强制单次确认、ask 强制审批含实时工具、精确 scope allow 快通、list_files/search_files 只读前置检查）+ L2 模型语义兜底与未授权覆盖强降级 ask。",
+        "signature": "reviewAction(ask: AskAuthorizationModel | undefined, authorization: AuthorizationSnapshot, action: ToolAction, signal: AbortSignal): Promise<ActionReviewResult>",
+        "input": "AuthorizationSnapshot, ToolAction { tool, operation, arguments, layer?: \"realtime\" | \"backend\" }",
+        "output": "ActionReviewResult { decision: \"allow\" | \"deny\" | \"ask\", reason: string, policyLayer: \"rule\" | \"model\", matchedGrantIds?: string[] }",
+        "errors": "L2 模型返回非法格式时抛错并阻断工具执行"
+      },
+      {
+        "id": "safe.verifySpokenVote",
+        "kind": "interface",
+        "parent": "safe.store",
+        "module": "safety",
+        "label": "verifySpokenVote",
+        "summary": "语音审批二审核验：L1 确定性口头同意/拒绝快通（兼容语气词前缀与回溯拒绝句），拦截附带改参数条件（modify）与敷衍犹豫（unclear）；candidateDecision=deny 时接受 modify 判定以防止改口死循环。",
+        "signature": "verifySpokenVote(ask: AskAuthorizationModel | undefined, pendingAction: PendingAction, speech: SpeechInputContext, candidateDecision: \"allow\" | \"deny\", signal: AbortSignal, note?: string): Promise<SpokenVoteVerification>",
+        "input": "pendingAction { title, tool?, operation?, arguments? }, SpeechInputContext, candidateDecision: \"allow\" | \"deny\", note?: string",
+        "output": "SpokenVoteVerification { verdict: \"allow\" | \"deny\" | \"unclear\" | \"modify\", reason: string }",
+        "errors": "无最终转写或核验模型不可用时返回 unclear，绝不误放行"
+      },
+      {
+        "id": "safe.respondWithGuard",
+        "kind": "interface",
+        "parent": "safe.broker",
+        "module": "safety",
+        "label": "respondWithGuard",
+        "summary": "语音与 UI 共用互斥锁（inFlightGuards）与短期终态账本（resolvedHistory），防止并发双击、超时边界抢跑及迟到投票误放行。",
+        "signature": "respondWithGuard(requestHandle: string, decision: SpokenPermissionDecision, options?: { note?: string; source?: \"voice\" | \"ui\"; verify?: () => Promise<{ ok: boolean; code?: \"unclear\" | \"modify\"; reason?: string }> }): Promise<PermissionRespondResult>",
+        "input": "requestHandle: string, decision: \"allow\" | \"allow_always\" | \"deny\" | \"cancel\", options?",
+        "output": "PermissionRespondResult { status: \"delivered\" | \"confirmation_required\" | \"expired\" | \"already_approved\" | \"already_denied\" | \"cancelled\" | \"already_resolved\" | \"not_found\" }",
+        "errors": "二审未通过返回 confirmation_required(code: unclear|modify)；超时返回 expired"
+      },
+      {
+        "id": "back.syncAuth",
+        "kind": "interface",
+        "parent": "back.acp",
+        "module": "backend",
+        "label": "syncAuthorizationSnapshot",
+        "summary": "通过 ACP extMethod(\"voiceharness/sync-authorization\") 将最新会话授权快照实时同步至运行中的 workspace-agent；排队任务启动时保持更高版本的实时策略不回退。",
+        "signature": "syncAuthorizationSnapshot(snapshot: AuthorizationSnapshot): Promise<void>",
+        "input": "AuthorizationSnapshot",
+        "output": "Promise<void>",
+        "errors": "ACP 连接未就绪时静默忽略，任务出队（sendPromptNow）与下次同步自动补齐最新快照"
+      },
+      {
+        "id": "back.filesTools",
+        "kind": "interface",
+        "parent": "back.files",
+        "module": "backend",
+        "label": "search / append / edit / validateEdit / move / removeMany",
+        "summary": "受限工作区扩展文件工具集：支持关键词检索（search_files）、末尾追加（append_file）、局部替换（edit_file，含审批前 validateEdit 预校验）、移动/重命名（move_file）、单次批量删除（delete_file）及 SHA-256 fingerprint 并发保护。",
+        "signature": "validateEdit(name, oldText, newText, replaceAll) / edit(...) / append(...) / move(...) / removeMany(entries) / search(query, options?)",
+        "input": "工作区内相对路径、文本参数与审批前文件指纹 expected",
+        "output": "{ replacements, bytes } | { matches, count } | string[]（已删路径列表）",
+        "errors": "路径越界、符号链接、无匹配/多处匹配未开 replace_all 或授权后文件指纹变化时抛错拒绝落盘"
+      },
+      {
+        "id": "web.authUI",
+        "kind": "interface",
+        "parent": "web.browser",
+        "module": "web",
+        "label": "工具差异化审批卡片与会话授权面板",
+        "summary": "前端展示工具差异化审批卡片（逐行 diff、覆盖原文件大小告警、60s 实时倒计时与超时自动刷新）、底部通话条约束指示器、任务页授权芯片条及设置页规则撤销/快捷策略开关/一键重置面板。",
+        "signature": "renderPermissionBox(permission, detailPrefix) / renderAuthorization() / runAuthorizationAction(payload, okNotice)",
+        "input": "SubagentsSnapshot.authorization & PendingPermissionView[]",
+        "output": "POST /api/tasks (permission | authorization_revoke | authorization_reset | authorization_policy)",
+        "errors": "60s 超时归零自动禁用按钮并触发 pollTasks 同步；断连/重置/切目录自动清理 permissionDecisions 缓存"
+      }
+    ],
+    "edges": [
+      {
+        "id": "e201",
+        "source": "live.callbacks",
+        "target": "safe.updateAuthorization",
+        "type": "Calls",
+        "label": "onInputTranscriptDone → observeUserTranscript（过滤纯审批投票与回溯批量拒绝）"
+      },
+      {
+        "id": "e202",
+        "source": "live.dispatch",
+        "target": "safe.reviewAction",
+        "type": "Calls",
+        "label": "beforeExecute → reviewRealtimeToolAction（实时 web_search / appshot 执行前 L1 审查）"
+      },
+      {
+        "id": "e203",
+        "source": "safe.reviewAction",
+        "target": "live.dispatch",
+        "type": "Data Flow",
+        "label": "返回 allow / deny / ask；命中 deny 或全局 ask 时阻断实时工具并返回回执"
+      },
+      {
+        "id": "e204",
+        "source": "live.handoff",
+        "target": "safe.updateAuthorization",
+        "type": "Calls",
+        "label": "ensureUpdatedFor 确保派单前完成本轮任务授权表更新"
+      },
+      {
+        "id": "e205",
+        "source": "safe.updateAuthorization",
+        "target": "live.handoff",
+        "type": "Data Flow",
+        "label": "返回最新 AuthorizationSnapshot 注入 ContentBlock.workspaceAuthorization"
+      },
+      {
+        "id": "e206",
+        "source": "live.handoff",
+        "target": "live.stopTask",
+        "type": "Calls",
+        "label": "识别 isRejectAllPreviousTasks 时在 prompt 前同步 cancelActiveWorkspaceJobs 作废旧任务"
+      },
+      {
+        "id": "e207",
+        "source": "safe.store",
+        "target": "back.syncAuth",
+        "type": "Calls",
+        "label": "onSnapshot → 实时向后端适配器推送最新授权快照"
+      },
+      {
+        "id": "e208",
+        "source": "safe.store",
+        "target": "live.stopTask",
+        "type": "Emits / Handles",
+        "label": "onSnapshot → invalidateWorkspaceJobsForAuthorizationChange 自动作废越权运行/排队任务"
+      },
+      {
+        "id": "e209",
+        "source": "back.syncAuth",
+        "target": "back.agentPrompt",
+        "type": "Data Flow",
+        "label": "ACP voiceharness/sync-authorization 实时更新 session.authorization（防旧快照版本回退）"
+      },
+      {
+        "id": "e210",
+        "source": "back.agentPrompt",
+        "target": "safe.reviewAction",
+        "type": "Calls",
+        "label": "后台 9 项工作区工具执行前 L1+L2 授权审查"
+      },
+      {
+        "id": "e211",
+        "source": "safe.reviewAction",
+        "target": "back.agentPrompt",
+        "type": "Data Flow",
+        "label": "返回 allow（执行）/ ask（发起审批）/ deny（拒绝并锁死本轮该工具）"
+      },
+      {
+        "id": "e212",
+        "source": "back.agentPrompt",
+        "target": "back.filesTools",
+        "type": "Calls",
+        "label": "审批前 validateEdit 预检 + 批准复核 paramsVersion/Hash/fingerprint 后执行文件操作"
+      },
+      {
+        "id": "e213",
+        "source": "back.filesTools",
+        "target": "back.agentPrompt",
+        "type": "Data Flow",
+        "label": "返回预检结果、实际写入/替换/删除回执或校验异常"
+      },
+      {
+        "id": "e214",
+        "source": "live.permissionRespond",
+        "target": "safe.verifySpokenVote",
+        "type": "Calls",
+        "label": "respondWithGuard.verify → 语音投票二审与改口参数拦截"
+      },
+      {
+        "id": "e215",
+        "source": "safe.verifySpokenVote",
+        "target": "live.permissionRespond",
+        "type": "Data Flow",
+        "label": "返回 verdict(allow|deny|unclear|modify) 决定放行或要求重新确认"
+      },
+      {
+        "id": "e216",
+        "source": "web.authUI",
+        "target": "web.bridge",
+        "type": "Calls",
+        "label": "POST /api/tasks（permission | authorization_revoke | authorization_reset | authorization_policy）"
+      },
+      {
+        "id": "e217",
+        "source": "web.bridge",
+        "target": "live.session",
+        "type": "Calls",
+        "label": "转发 /live/subagents → handleSubagentsRequest 操作 safe.store / safe.respondWithGuard 并增进 revision"
+      },
+      {
+        "id": "e218",
+        "source": "live.session",
+        "target": "web.authUI",
+        "type": "Data Flow",
+        "label": "返回 SubagentsPage（含最新 snapshot.authorization 与待审批列表）刷新权限 UI"
+      },
+      {
+        "id": "e219",
+        "source": "safe.respondWithGuard",
+        "target": "safe.respond",
+        "type": "Calls",
+        "label": "校验通过后调用"
+      }
+    ],
+    "removedNodes": [
+      "prop.approval"
+    ],
+    "removedEdges": [
+      "e086",
+      "e087"
+    ]
+  }
+}
