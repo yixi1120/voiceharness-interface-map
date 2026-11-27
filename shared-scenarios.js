@@ -875,19 +875,20 @@
           previewButton.disabled = Boolean(incompatible);
         });
     }
-    if (window.interfaceReview && !incompatible) {
+    if (!incompatible) {
       const button = document.createElement('button');
-      button.textContent = '加入本地审核';
+      button.textContent = manual ? '保存到本机待审' : '开始审核';
       $('#compareShared').before(button);
       button.onclick = () => {
         panel.close();
-        window.interfaceReview.start(
-          d,
-          manual ? '' : issue.user?.login,
-          label,
-          null,
-          manual ? null : number,
-        );
+        if (manual) window.interfaceReview.start(d, '', label);
+        else
+          window.interfaceReview.openShared(
+            d,
+            issue.user?.login || '账号未登记',
+            label,
+            number,
+          );
       };
     }
     $('#compareShared').onclick = () => {
@@ -971,7 +972,9 @@
     if (m) open(Number(m[1]));
   }
   window.addEventListener('hashchange', deepLink);
-  deepLink();
+  if (document.readyState === 'loading')
+    window.addEventListener('DOMContentLoaded', deepLink, { once: true });
+  else deepLink();
   window.sharedScenarios = {
     clean,
     bodyFor,

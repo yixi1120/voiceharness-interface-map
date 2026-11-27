@@ -234,7 +234,59 @@
       );
     };
   }
-  function start(draft, author = '', title = '', context = null, issue = null) {
+  function pendingVersion(draft, author, n = 1, parent = null) {
+    return {
+      n,
+      parent,
+      author,
+      created: new Date().toISOString(),
+      state: 'pending',
+      draft: structuredClone(draft),
+      supplement: '',
+    };
+  }
+  async function openShared(draft, author, title, issue) {
+    try {
+      const content = JSON.stringify(window.sharedScenarios.clean(draft));
+      const [id, n] = await navigator.locks.request(key, () => {
+        const state = read();
+        let pending;
+        for (const plan of state.plans) {
+          if (plan.issue !== issue) continue;
+          for (const version of plan.versions) {
+            if (version.supersededBy) continue;
+            let saved;
+            try {
+              saved = window.sharedScenarios.clean(version.draft);
+            } catch {
+              // A local revision can exceed the public draft size limit.
+              continue;
+            }
+            if (JSON.stringify(saved) !== content) continue;
+            if (version.state !== 'pending') return [plan.id, version.n];
+            pending = [plan.id, version.n];
+          }
+        }
+        if (pending) return pending;
+        if (!analyse(base, wb.scenario(draft), draft).changes.length)
+          throw Error('这份草稿没有节点或连线的修改。');
+        const plan = {
+          id: crypto.randomUUID(),
+          issue,
+          title,
+          versions: [pendingVersion(draft, author)],
+        };
+        state.plans.push(plan);
+        localStorage.setItem(key, JSON.stringify(state));
+        return [plan.id, 1];
+      });
+      detail(id, n);
+    } catch (e) {
+      directory();
+      fail(e);
+    }
+  }
+  function start(draft, author = '', title = '', context = null) {
     const state = read();
     try {
       const plan = context && state.plans.find((p) => p.id === context.id);
@@ -278,7 +330,7 @@
               parent.n +
               '。新版本审核通过前，原约定继续有效。</p>'
             : '') +
-          '<button>保存为黄色待审</button></form>',
+          '<button>保存到本机待审</button></form>',
       );
       $('rvSubmit').onsubmit = (e) => {
         e.preventDefault();
@@ -292,19 +344,13 @@
           (s) => {
             let target = s.plans.find((p) => p.id === id);
             if (!target) {
-              target = { id, title: name, versions: [], issue };
+              target = { id, title: name, versions: [], issue: null };
               s.plans.push(target);
             }
             if (context?.replaces) target.versions.at(-1).supersededBy = n;
-            target.versions.push({
-              n,
-              parent: parent?.n || null,
-              author: who,
-              created: new Date().toISOString(),
-              state: 'pending',
-              draft: structuredClone(draft),
-              supplement: '',
-            });
+            target.versions.push(
+              pendingVersion(draft, who, n, parent?.n || null),
+            );
           },
           () => {
             if (context) sessionStorage.removeItem(revisionKey);
@@ -553,6 +599,7 @@
       }
     },
     start,
+    openShared,
     importContract(record) {
       const state = read();
       const id = crypto.randomUUID();
