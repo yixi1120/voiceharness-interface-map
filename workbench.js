@@ -199,6 +199,55 @@
       )
       .join('');
   }
+  function addPickerSearch(selectId, title, placeholder, entries) {
+    const select = $(selectId);
+    const box = document.createElement('div');
+    const inputId = selectId + 'Search';
+    box.innerHTML = `<label for="${inputId}">${title}</label><input type="search" id="${inputId}" placeholder="${placeholder}" autocomplete="off" aria-controls="${inputId}Results"><div class="picker-results" id="${inputId}Results" hidden></div>`;
+    select.parentElement.before(box);
+    const input = $(inputId);
+    const results = $(inputId + 'Results');
+    function clear() {
+      input.value = '';
+      results.replaceChildren();
+      results.hidden = true;
+    }
+    function choose(button) {
+      select.value = button.value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      clear();
+      select.focus();
+    }
+    input.oninput = () => {
+      const query = input.value.trim().toLowerCase();
+      results.replaceChildren();
+      results.hidden = !query;
+      if (!query) return;
+      const terms = query.split(/\s+/);
+      for (const item of entries) {
+        if (!terms.every((term) => item.search.includes(term))) continue;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.value = item.id;
+        button.textContent = [item.label, item.description, item.id]
+          .filter(Boolean)
+          .join(' · ');
+        results.append(button);
+      }
+      if (!results.childElementCount) results.textContent = '没有匹配项';
+    };
+    results.onclick = (event) => {
+      if (event.target.tagName === 'BUTTON') choose(event.target);
+    };
+    input.onkeydown = (event) => {
+      if (event.isComposing || event.keyCode === 229 || event.key !== 'Enter')
+        return;
+      event.preventDefault();
+      const first = results.querySelector('button');
+      if (first) choose(first);
+    };
+    select.addEventListener('change', clear);
+  }
   function dialog(title, html) {
     $('labDialog').innerHTML =
       `<div class="lab-heading"><h2>${esc(title)}</h2><button id="labClose">关闭</button></div>${html}`;
@@ -230,13 +279,69 @@
   }
   function editor() {
     const g = scenario();
+    const nodeById = new Map(g.nodes.map((node) => [node.id, node]));
+    const nodeChoices = g.nodes.map((node) => ({
+      id: node.id,
+      label: node.label,
+      search: [node.id, node.label, node.signature].join(' ').toLowerCase(),
+    }));
+    const edgeChoices = g.edges.map((edge) => {
+      const source = nodeById.get(edge.source);
+      const target = nodeById.get(edge.target);
+      const label =
+        (source?.label || edge.source) +
+        ' → ' +
+        (target?.label || edge.target) +
+        ' · ' +
+        edge.type;
+      return {
+        id: edge.id,
+        label,
+        description: edge.label,
+        search: [
+          label,
+          edge.id,
+          edge.label,
+          edge.source,
+          edge.target,
+          source?.signature,
+          target?.signature,
+        ]
+          .join(' ')
+          .toLowerCase(),
+      };
+    });
     dialog(
       '模拟添加与调整',
       `<p>先在图里试方案。新增、修改的节点及其连线标为 Proposed；含义是拟议关系，不会变成源码事实。</p><div class="lab-row"><button id="draftExample">添加摘要接入示例</button><button id="draftPreview">预览草稿</button><button id="draftExport">导出草稿</button><button id="draftSubmit">提交共享方案</button><button id="draftCompare">对比我的修改</button><label class="lab-import">导入草稿<input id="draftImport" type="file" accept=".json"></label></div><p class="hint">${publicView ? '草稿先保存在你的浏览器。点“提交共享方案”并在 GitHub 确认后，其他人可在“共享方案”查看。' : '草稿只含修改项，不附业务源码；图上“完整数据 JSON”仍是本地研究资料，不可直接公开。'}</p>
  <h3>节点</h3><label>选择已有节点编辑<select id="nodePick"><option value="">新增节点…</option>${options(g.nodes)}</select></label>
  <form id="nodeForm"><label>层级<select id="nodeKind"><option value="interface">接口</option><option value="component">组件</option><option value="module">模块</option></select></label><label>属于哪个模块 / 组件<select id="nodeParent"></select></label><label>名称<input id="nodeLabel" required maxlength="120" placeholder="例如 summarizeConversation"></label><label>一句话用途<textarea id="nodeSummary" maxlength="2000"></textarea></label><label>签名<input id="nodeSignature" placeholder="例如 summarize(input): Summary"></label><label>输入<input id="nodeInput"></label><label>输出<input id="nodeOutput"></label><label>错误与取消<input id="nodeErrors"></label><div class="lab-row"><button type="submit">保存节点并预览</button><button type="button" id="nodeDelete">模拟删除此节点</button></div></form>
- <h3>连线</h3><label>选择已有连线<select id="edgePick"><option value="">新增连线…</option>${options(g.edges.map((e) => ({ id: e.id, label: g.nodes.find((n) => n.id === e.source)?.label + ' → ' + g.nodes.find((n) => n.id === e.target)?.label + ' · ' + e.type })))}</select></label>
+ <h3>连线</h3><label>选择已有连线<select id="edgePick"><option value="">新增连线…</option>${options(edgeChoices)}</select></label>
  <form id="edgeForm"><label>起点<select id="edgeSource">${options(g.nodes)}</select></label><label>终点<select id="edgeTarget">${options(g.nodes)}</select></label><label>关系<select id="edgeType">${base.meta.relations.map((t) => `<option>${esc(t)}</option>`).join('')}</select></label><label>说明<input id="edgeLabel" required maxlength="200" placeholder="例如把对话交给摘要模块"></label><div class="lab-row"><button type="submit">保存连线并预览</button><button type="button" id="edgeDelete">模拟删除此连线</button></div></form><hr><button id="draftReset">清空本地草稿</button>`,
+    );
+    addPickerSearch(
+      'nodePick',
+      '搜索节点',
+      '输入节点名称、函数名或 ID',
+      nodeChoices,
+    );
+    addPickerSearch(
+      'edgePick',
+      '搜索连线',
+      '输入起点、终点、连线说明或 ID',
+      edgeChoices,
+    );
+    addPickerSearch(
+      'edgeSource',
+      '搜索起点',
+      '输入起点名称、函数名或 ID',
+      nodeChoices,
+    );
+    addPickerSearch(
+      'edgeTarget',
+      '搜索终点',
+      '输入终点名称、函数名或 ID',
+      nodeChoices,
     );
     editingNode = '';
     editingEdge = '';
